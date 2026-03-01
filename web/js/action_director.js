@@ -875,6 +875,7 @@ class YedpViewport {
                 color: c.gender === 'F' ? '#ff66b2' : '#66b2ff'
             });
             btnGender.onclick = () => {
+                c.gender = c.gender === 'M' ? 'F' : 'M';
                 btnGender.innerText = c.gender;
                 btnGender.style.color = c.gender === 'F' ? '#ff66b2' : '#66b2ff';
                 const selView = this.container.querySelector("#sel-viewmode");
