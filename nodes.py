@@ -268,3 +268,23 @@ async def delete_preset(request):
         os.remove(filepath)
         return web.json_response({"status": "deleted", "name": name})
     return web.json_response({"error": f"Preset '{name}' not found"}, status=404)
+
+
+# =============================================================================
+# Retarget Bone Map API
+# =============================================================================
+YEDP_BONE_MAP = {}  # source_name -> target_name
+
+@PromptServer.instance.routes.post("/yedp/retarget_bone_map")
+async def set_bone_map(request):
+    """Store a bone mapping for animation retargeting."""
+    global YEDP_BONE_MAP
+    data = await request.json()
+    YEDP_BONE_MAP = data.get("bone_map", {})
+    print(f"[Yedp] Bone map set: {len(YEDP_BONE_MAP)} mappings")
+    return web.json_response({"status": "ok", "count": len(YEDP_BONE_MAP)})
+
+@PromptServer.instance.routes.get("/yedp/retarget_bone_map")
+async def get_bone_map(request):
+    """Returns the current retarget bone map for JS to use."""
+    return web.json_response({"bone_map": YEDP_BONE_MAP})

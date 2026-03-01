@@ -1,40 +1,36 @@
 """
-FEAT-04: Rokoko Retarget JSON Relay Node (GLB only)
+FEAT-04: Rokoko Retarget Node
 
-Reads a Rokoko Studio retarget map JSON and renames bones in a source GLB
-to match Yedp_Rig.glb bone names, enabling animation retargeting through
-Yedp Action Director's existing semanticNormalize pipeline.
+Reads a retarget map JSON (Rokoko format) and registers the bone mapping
+with the Action Director API. The JS animation loader then uses this mapping
+when loading animations, enabling bone name translation.
 
-Dependencies: pygltflib
+Supports both GLB and FBX animation files.
 """
 
 import json
 import os
-import copy
 from pathlib import Path
 
-try:
-    import pygltflib
-except ImportError:
-    pygltflib = None
-    print("[Yedp] WARNING: pygltflib not installed. FEAT-04 (Rokoko Retargeter) disabled.")
-    print("[Yedp]   Install with: pip install pygltflib")
-
 import folder_paths
+
+# Try to import for HTTP POST to self
+try:
+    import urllib.request
+except ImportError:
+    urllib = None
 
 
 class YedpRokokoRetargeter:
     """
-    Reads a Rokoko retarget map JSON and renames bones in a GLB file
-    to match the target rig (Yedp_Rig.glb).
+    Reads a Rokoko retarget map JSON and registers the bone mapping.
+    The Action Director's JS will use this mapping when loading animations.
 
-    Input:  source GLB + retarget JSON
-    Output: retargeted GLB path (STRING) ready for Yedp Action Director
+    Supports: GLB, FBX, BVH animation files.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
-        # List available GLB/FBX files in yedp_anims
         anim_files = []
         try:
             anim_files = folder_paths.get_filename_list("yedp_anims")
@@ -47,7 +43,7 @@ class YedpRokokoRetargeter:
                 "retarget_json_path": ("STRING", {
                     "default": "",
                     "multiline": False,
-                    "placeholder": "Path to Rokoko retarget JSON"
+                    "placeholder": "Path to retarget JSON"
                 }),
                 "frame_start": ("INT", {"default": 0, "min": 0, "max": 99999}),
                 "frame_end": ("INT", {"default": -1, "min": -1, "max": 99999}),
@@ -61,19 +57,14 @@ class YedpRokokoRetargeter:
     CATEGORY = "Yedp/Animation"
 
     DESCRIPTION = (
-        "Renames bones in a GLB animation file using a Rokoko retarget map JSON. "
-        "The output GLB can be loaded directly by Yedp Action Director."
+        "Reads a Rokoko retarget map JSON and registers bone mappings "
+        "for use by Yedp Action Director when loading animations."
     )
 
     def retarget(self, animation_file, retarget_json_path,
                  frame_start=0, frame_end=-1, frame_step=1):
-        if pygltflib is None:
-            raise ImportError(
-                "pygltflib is required for Rokoko retargeting. "
-                "Install with: pip install pygltflib"
-            )
 
-        # --- 1. Resolve animation file path ---
+        # --- 1. Validate animation file ---
         if not animation_file or animation_file == "none":
             raise ValueError("No animation file selected.")
 
@@ -83,95 +74,70 @@ class YedpRokokoRetargeter:
         if not os.path.isfile(anim_path):
             raise FileNotFoundError(f"Animation file not found: {anim_path}")
 
-        if not anim_path.lower().endswith(".glb"):
-            raise ValueError(
-                f"Only GLB files are supported for retargeting. Got: {animation_file}\n"
-                "Convert FBX to GLB in Blender first."
-            )
-
         # --- 2. Load retarget map ---
         if not retarget_json_path or not os.path.isfile(retarget_json_path):
             raise FileNotFoundError(
                 f"Retarget JSON not found: {retarget_json_path}\n"
-                "Export a retarget map from Rokoko Studio and provide its path."
+                "Provide a valid path to the bone mapping JSON."
             )
 
         with open(retarget_json_path, "r", encoding="utf-8") as f:
             retarget_data = json.load(f)
 
-        # Build bone rename map: source_name -> target_name
+        # --- 3. Parse bone map (multiple formats supported) ---
         bone_map = {}
-        retarget_list = retarget_data.get("retarget", [])
-        if not retarget_list:
-            # Try alternate format: direct dict mapping
-            if isinstance(retarget_data, dict) and "retarget" not in retarget_data:
-                bone_map = {str(k): str(v) for k, v in retarget_data.items()}
-            else:
-                print("[Yedp] WARNING: Retarget JSON has no 'retarget' array. "
-                      "Attempting to use as direct key-value mapping.")
-                bone_map = {str(k): str(v) for k, v in retarget_data.items()
-                            if k != "retarget"}
-        else:
-            for entry in retarget_list:
+
+        # Format A: Rokoko custom format {"bones": {"key": ["source", "target"], ...}}
+        if "bones" in retarget_data and isinstance(retarget_data["bones"], dict):
+            for key, value in retarget_data["bones"].items():
+                if isinstance(value, list) and len(value) >= 2:
+                    source_name = value[0]  # e.g., "torso"
+                    target_name = value[1]  # e.g., "Hips"
+                    bone_map[source_name] = target_name
+
+        # Format B: {"retarget": [{"source": "...", "target": "..."}, ...]}
+        elif "retarget" in retarget_data:
+            for entry in retarget_data["retarget"]:
                 src = entry.get("source", "")
                 tgt = entry.get("target", "")
                 if src and tgt:
                     bone_map[src] = tgt
 
+        # Format C: Direct {"source": "target", ...}
+        else:
+            bone_map = {str(k): str(v) for k, v in retarget_data.items()
+                        if isinstance(v, str)}
+
         if not bone_map:
             raise ValueError("No valid bone mappings found in retarget JSON.")
 
         print(f"[Yedp] Retarget map loaded: {len(bone_map)} bone mappings")
+        for src, tgt in list(bone_map.items())[:5]:
+            print(f"[Yedp]   {src} -> {tgt}")
+        if len(bone_map) > 5:
+            print(f"[Yedp]   ... and {len(bone_map) - 5} more")
 
-        # --- 3. Load and modify GLB ---
-        glb = pygltflib.GLTF2().load(anim_path)
+        # --- 4. POST bone map to the Action Director API ---
+        try:
+            import urllib.request
+            payload = json.dumps({"bone_map": bone_map}).encode("utf-8")
+            req = urllib.request.Request(
+                "http://127.0.0.1:8188/yedp/retarget_bone_map",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                result = json.loads(resp.read())
+                print(f"[Yedp] Bone map registered: {result}")
+        except Exception as e:
+            print(f"[Yedp] WARNING: Could not POST bone map to API: {e}")
+            print("[Yedp]   The bone map will not be used for animation retargeting.")
 
-        renamed_count = 0
-        unmatched = []
-
-        for node in glb.nodes:
-            if node.name in bone_map:
-                old_name = node.name
-                node.name = bone_map[old_name]
-                renamed_count += 1
-                print(f"[Yedp]   Renamed: {old_name} -> {node.name}")
-            elif node.name:
-                # Check if any bone map key is a substring (for prefix matching)
-                matched = False
-                for src, tgt in bone_map.items():
-                    if src in node.name or node.name in src:
-                        old_name = node.name
-                        node.name = tgt
-                        renamed_count += 1
-                        matched = True
-                        print(f"[Yedp]   Renamed (fuzzy): {old_name} -> {node.name}")
-                        break
-                if not matched:
-                    unmatched.append(node.name)
-
-        if unmatched:
-            print(f"[Yedp] WARNING: {len(unmatched)} bones not in retarget map "
-                  f"(kept original names): {unmatched[:10]}...")
-
-        print(f"[Yedp] Total bones renamed: {renamed_count}")
-
-        # --- 4. Save retargeted GLB ---
-        out_dir = os.path.join(anim_dir, "retargeted")
-        os.makedirs(out_dir, exist_ok=True)
-
-        stem = Path(animation_file).stem
-        out_filename = f"retargeted_{stem}.glb"
-        out_path = os.path.join(out_dir, out_filename)
-
-        glb.save(out_path)
-        print(f"[Yedp] Retargeted GLB saved: {out_path}")
-
-        # Return relative path that yedp_anims folder_paths can resolve
-        relative_path = f"retargeted/{out_filename}"
-        return (relative_path,)
+        # Return the animation file path (unchanged - JS loads and applies mapping)
+        return (animation_file,)
 
 
-# Export for __init__.py
 NODE_CLASS_MAPPINGS = {
     "YedpRokokoRetargeter": YedpRokokoRetargeter,
 }

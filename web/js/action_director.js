@@ -315,7 +315,7 @@ class YedpViewport {
 
             // MAIN VIEW AREA
             const mainCol = document.createElement("div");
-            Object.assign(mainCol.style, { display: "flex", flexDirection: "column", flex: "1", minWidth: 0 });
+            Object.assign(mainCol.style, { display: "flex", flexDirection: "column", flex: "1", minWidth: 0, minHeight: 0, overflow: "hidden" });
             this.container.appendChild(mainCol);
 
             // SIDEBAR
@@ -866,6 +866,37 @@ class YedpViewport {
             lblDur.style.color = "#888"; lblDur.style.fontFamily = "monospace";
 
             foot.append(loopBox, lblDur);
+
+            // --- GIZMO NUMERIC INPUTS (Pos XYZ, Rot Y) ---
+            const numRow = (label, fields) => {
+                const row = document.createElement("div");
+                row.style.display = "flex"; row.style.gap = "2px"; row.style.alignItems = "center"; row.style.marginTop = "3px";
+                const lbl = document.createElement("span");
+                lbl.innerText = label; lbl.style.color = "#666"; lbl.style.fontSize = "9px"; lbl.style.minWidth = "18px";
+                row.appendChild(lbl);
+                fields.forEach(inp => row.appendChild(inp));
+                return row;
+            };
+            const nInp = (val) => {
+                const inp = document.createElement("input"); inp.type = "number"; inp.step = "0.1"; inp.value = val;
+                Object.assign(inp.style, { width: "42px", background: "#111", color: "#fff", border: "1px solid #444", fontSize: "9px", padding: "1px 2px", borderRadius: "2px" });
+                return inp;
+            };
+            const cpx = nInp(c.scene.position.x.toFixed(2));
+            const cpy = nInp(c.scene.position.y.toFixed(2));
+            const cpz = nInp(c.scene.position.z.toFixed(2));
+            const applyCharPos = () => {
+                c.scene.position.set(parseFloat(cpx.value), parseFloat(cpy.value), parseFloat(cpz.value));
+            };
+            cpx.onchange = cpy.onchange = cpz.onchange = applyCharPos;
+
+            const cry = nInp((c.scene.rotation.y * 180 / Math.PI).toFixed(1));
+            cry.step = "15";
+            cry.onchange = () => { c.scene.rotation.y = parseFloat(cry.value) * Math.PI / 180; };
+
+            card.appendChild(numRow("Pos", [cpx, cpy, cpz]));
+            card.appendChild(numRow("RotY", [cry]));
+
             card.append(head, meshInfo, selAnim, foot);
             this.uiCharList.appendChild(card);
         });
@@ -926,8 +957,18 @@ class YedpViewport {
         charObj.animFile = filename;
         const isFBX = filename.toLowerCase().endsWith(".fbx");
         const isBVH = filename.toLowerCase().endsWith(".bvh");
-        // V9.8 FIX: Cache Buster for animations too, just in case you overwrite an FBX.
         const url = `/view?filename=${filename}&type=input&subfolder=yedp_anims&t=${Date.now()}`;
+
+        // Fetch retarget bone map if available
+        let retargetMap = {};
+        try {
+            const mapRes = await api.fetchApi("/yedp/retarget_bone_map");
+            const mapData = await mapRes.json();
+            if (mapData.bone_map && Object.keys(mapData.bone_map).length > 0) {
+                retargetMap = mapData.bone_map;
+                console.log(`[Yedp] Using retarget bone map (${Object.keys(retargetMap).length} mappings)`);
+            }
+        } catch (e) { /* no map available, use semanticNormalize only */ }
 
         try {
             let model;
@@ -943,16 +984,31 @@ class YedpViewport {
                     const lastDot = t.name.lastIndexOf(".");
                     const prop = t.name.substring(lastDot + 1);
                     const fullBonePath = t.name.substring(0, lastDot);
-                    const normalizedTrackBone = semanticNormalize(fullBonePath);
 
                     if (prop === "scale") return;
 
-                    if (this.semanticMap.has(normalizedTrackBone)) {
-                        const targetRealName = this.semanticMap.get(normalizedTrackBone);
-                        const tc = t.clone();
+                    // Step 1: Try retarget bone map first (exact match on bone name)
+                    let targetRealName = null;
+                    const boneName = fullBonePath.split('/').pop().split(':').pop();
+                    if (retargetMap[boneName]) {
+                        // retargetMap maps source->target, need to find target in semanticMap
+                        const mappedTarget = retargetMap[boneName];
+                        const normMapped = semanticNormalize(mappedTarget);
+                        if (this.semanticMap.has(normMapped)) {
+                            targetRealName = this.semanticMap.get(normMapped);
+                        }
+                    }
 
-                        // V9.9 FIX: Removed completely the aggressive positional override.
-                        // Root motions, jumps, and world-space paths are now perfectly preserved!
+                    // Step 2: Fall back to semanticNormalize
+                    if (!targetRealName) {
+                        const normalizedTrackBone = semanticNormalize(fullBonePath);
+                        if (this.semanticMap.has(normalizedTrackBone)) {
+                            targetRealName = this.semanticMap.get(normalizedTrackBone);
+                        }
+                    }
+
+                    if (targetRealName) {
+                        const tc = t.clone();
                         tc.name = `${targetRealName}.${prop}`;
                         tracks.push(tc);
                     }
@@ -970,7 +1026,6 @@ class YedpViewport {
 
                 charObj.duration = cleanClip.duration;
 
-                // Update label
                 const lbl = document.getElementById(`dur-${charObj.id}`);
                 if (lbl) {
                     const fps = this.getWidgetValue("fps", 24);

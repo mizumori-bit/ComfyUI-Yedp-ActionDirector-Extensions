@@ -1,1 +1,2 @@
-pygltflib>=1.16.0
+# No external dependencies required
+# pygltflib is no longer needed - retargeting works via bone map API
