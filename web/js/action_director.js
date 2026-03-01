@@ -961,6 +961,22 @@ class YedpViewport {
         this.renderCharacterCards();
     }
 
+    async refreshRetargetMaps() {
+        try {
+            const resp = await api.fetchApi("/yedp/retarget_maps/list");
+            const data = await resp.json();
+            this._retargetSelect.innerHTML = "";
+            data.maps.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = opt.innerText = m;
+                this._retargetSelect.appendChild(opt);
+            });
+            // Try to select BoneConvert by default if it exists
+            const defaultOpt = Array.from(this._retargetSelect.options).find(o => o.value.includes("BoneConvert"));
+            if (defaultOpt) this._retargetSelect.value = defaultOpt.value;
+        } catch (e) { console.error("Failed to load retarget maps list", e); }
+    }
+
     async loadAnimationForChar(charObj, filename) {
         if (!filename || filename === "none") return;
         charObj.animFile = filename;
