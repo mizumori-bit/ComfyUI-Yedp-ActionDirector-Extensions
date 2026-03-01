@@ -301,14 +301,21 @@ async def load_retarget_map(request):
                 data = json.load(f)
             
             # Extract Rokoko format `{"bones": {"BoneName": ["Source", "Target"]}}`
-            # and flat format `{"Source": "Target"}`
+            # format B `{"retarget": [{"source": "...", "target": "..."}]}`
+            # and flat format C `{"Source": "Target"}`
             mapping = {}
-            if "bones" in data:
+            if "bones" in data and isinstance(data["bones"], dict):
                 for k, v in data["bones"].items():
                     if isinstance(v, list) and len(v) >= 2:
                         mapping[v[0]] = v[1]
+            elif "retarget" in data and isinstance(data["retarget"], list):
+                for entry in data["retarget"]:
+                    src = entry.get("source", "")
+                    tgt = entry.get("target", "")
+                    if src and tgt:
+                        mapping[src] = tgt
             else:
-                mapping = data
+                mapping = {str(k): str(v) for k, v in data.items() if isinstance(v, str)}
                 
             return web.json_response({"bone_map": mapping})
         except Exception as e:
