@@ -445,7 +445,11 @@ class YedpViewport {
     setupHeader(div) {
         div.innerHTML = `
             <div style="display:flex; align-items:center; gap:6px;">
-                <label style="color:#ccc; font-size:11px; cursor:pointer;"><input type="checkbox" id="chk-depth"> Depth</label>
+                <select id="sel-viewmode" style="background:#111; color:#fff; border:1px solid #444; font-size:10px; padding:2px; height:18px;">
+                    <option value="pose">View: Pose</option>
+                    <option value="mesh">View: Mesh (Shaded)</option>
+                    <option value="depth">View: Depth</option>
+                </select>
                 <div id="depth-ctrls" style="display:flex; align-items:center; gap:2px; opacity:0.5; transition:opacity 0.2s;">
                     <span style="color:#666; font-size:10px;">N:</span>
                     <input id="inp-near" type="number" step="0.1" value="0.1" style="width:36px; background:#333; color:#fff; border:1px solid #444; font-size:10px; padding:1px;">
@@ -462,10 +466,8 @@ class YedpViewport {
 
         div.querySelector("#inp-near").onchange = (e) => { this.userNear = parseFloat(e.target.value); if (this.isDepthMode) this.updateCameraBounds(); };
         div.querySelector("#inp-far").onchange = (e) => { this.userFar = parseFloat(e.target.value); if (this.isDepthMode) this.updateCameraBounds(); };
-        div.querySelector("#chk-depth").onchange = (e) => {
-            const act = e.target.checked;
-            div.querySelector("#depth-ctrls").style.opacity = act ? "1.0" : "0.5";
-            this.toggleDepthMode(act);
+        div.querySelector("#sel-viewmode").onchange = (e) => {
+            this.setViewMode(e.target.value);
         };
         div.querySelector("#chk-skel").onchange = (e) => {
             this.characters.forEach(c => { if (c.skeletonHelper) c.skeletonHelper.visible = e.target.checked; });
@@ -873,10 +875,10 @@ class YedpViewport {
                 color: c.gender === 'F' ? '#ff66b2' : '#66b2ff'
             });
             btnGender.onclick = () => {
-                c.gender = c.gender === 'M' ? 'F' : 'M';
                 btnGender.innerText = c.gender;
                 btnGender.style.color = c.gender === 'F' ? '#ff66b2' : '#66b2ff';
-                if (this.isDepthMode) this.toggleDepthMode(true);
+                const selView = this.container.querySelector("#sel-viewmode");
+                if (selView) this.setViewMode(selView.value);
             };
 
             const lblLoop = document.createElement("label"); lblLoop.style.cursor = "pointer"; lblLoop.style.display = "flex"; lblLoop.style.gap = "2px";
@@ -1160,28 +1162,28 @@ class YedpViewport {
         this.renderer.render(this.scene, this.camera);
     }
 
-    toggleDepthMode(active) {
-        this.isDepthMode = active;
+    setViewMode(mode) {
+        this.isDepthMode = (mode === 'depth');
         this.characters.forEach(c => {
             // Keep inactive meshes hidden at all times
             c.inactiveDepthMeshes.forEach(m => m.visible = false);
 
-            c.activeDepthMeshes.forEach(m => m.visible = active);
-            c.poseMeshes.forEach(m => m.visible = !active);
-
-            if (active) {
-                c.activeDepthMeshes.forEach(m => {
+            c.activeDepthMeshes.forEach(m => {
+                m.visible = (mode === 'mesh' || mode === 'depth');
+                if (mode === 'depth') {
                     if (m.isMesh && !this.originalMaterials.has(m)) this.originalMaterials.set(m, m.material);
                     m.material = this.depthMat;
-                });
-            } else {
-                // Restore all materials unconditionally just to be safe
-                c.depthMeshesM.forEach(m => { if (this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
-                c.depthMeshesF.forEach(m => { if (this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
-            }
+                } else {
+                    if (this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m);
+                }
+            });
+            c.poseMeshes.forEach(m => m.visible = (mode === 'pose'));
         });
 
-        if (active) this.updateCameraBounds();
+        const depthCtrls = this.container.querySelector("#depth-ctrls");
+        if (depthCtrls) depthCtrls.style.opacity = this.isDepthMode ? "1.0" : "0.5";
+
+        if (this.isDepthMode) this.updateCameraBounds();
         else this.resetCamera();
     }
 
@@ -1315,7 +1317,7 @@ class YedpViewport {
 
         const setVisibility = (mode) => {
             const showPose = mode === 'pose';
-            const showDepth = mode === 'depth' || mode === 'canny' || mode === 'normal';
+            const showDepth = mode === 'depth' || mode === 'canny' || mode === 'normal' || mode === 'shaded';
             this.characters.forEach(c => {
                 c.poseMeshes.forEach(m => m.visible = showPose);
                 c.inactiveDepthMeshes.forEach(m => m.visible = false); // Force inactive meshes to stay hidden
@@ -1425,7 +1427,7 @@ class YedpViewport {
 
             // PASS 5: SHADED (Lighting & Original Materials)
             this.scene.background = new THREE.Color(0x000000);
-            setVisibility('pose');
+            setVisibility('shaded');
             this.resetCamera();
             // We do NOT call swapPoseToUnlit() here, so the original shaded materials are preserved!
             captureFrame(results.shaded, "image/png");
@@ -1447,8 +1449,8 @@ class YedpViewport {
         this.isBaking = false;
 
         // Restore standard view
-        const chkDepth = this.container.querySelector("#chk-depth").checked;
-        this.toggleDepthMode(chkDepth);
+        const selViewMode = this.container.querySelector("#sel-viewmode").value;
+        this.setViewMode(selViewMode);
         this.characters.forEach(c => { c.skeletonHelper.visible = visSkel; });
 
         // ---- CRITICAL NEW UPLOAD LOGIC TO PREVENT QUOTA CRASHES ----
