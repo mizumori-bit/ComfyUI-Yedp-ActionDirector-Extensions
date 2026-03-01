@@ -847,7 +847,7 @@ class YedpViewport {
             const animControls = document.createElement("div");
             animControls.appendChild(selAnim);
 
-            if (c.loadedAnimations && c.loadedAnimations.length > 1) {
+            if (c.loadedAnimations && c.loadedAnimations.length > 0) {
                 const selClip = document.createElement("select");
                 Object.assign(selClip.style, { width: "100%", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: "3px", fontSize: "9px", padding: "1px", marginBottom: "4px" });
                 c.loadedAnimations.forEach((clip, i) => selClip.add(new Option(`[${i}] ${clip.name || 'Unnamed'}`, i)));
