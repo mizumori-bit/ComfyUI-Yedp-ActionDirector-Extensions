@@ -22,40 +22,28 @@ Camera control, lighting, and Rokoko retargeting extensions for [Yedp Action Dir
 - **HemisphereLight**: Intensity control (sky/ground colors)
 - Defaults tuned for Normal map generation (dir=1.2, amb=0.4, hemi=0.3)
 
-### FEAT-04: Rokoko Retarget (GLB only)
-- New node: **🦴 Yedp Rokoko Retargeter**
-- Reads a Rokoko Studio retarget map JSON
-- Renames bones in source GLB to match Yedp_Rig.glb
-- Output GLB can be loaded directly by Yedp Action Director
-- Supports exact match and fuzzy bone name matching
+### FEAT-04: Native Bone Retargeting (JSON Maps) 🦴
+- Select a retarget map directly from the Action Director UI dropdown.
+- Maps are automatically loaded from `ComfyUI-Yedp-ActionDirector-Extensions/retarget_maps/`.
+- Replaces the need for external node pipelines or manual BVH/GLB editing.
+- Included `BoneConvert_rigify2Yedp.json` by default.
 
 ## Installation
 
 ```bash
 cd /workspace/ComfyUI/custom_nodes
-git clone https://github.com/YOUR_USERNAME/ComfyUI-Yedp-ActionDirector-Extensions.git
-pip install -r ComfyUI-Yedp-ActionDirector-Extensions/requirements.txt
+git clone https://github.com/mizumori-bit/ComfyUI-Yedp-ActionDirector-Extensions.git
 ```
 
 > **Note**: This replaces the original `ComfyUI-Yedp-Action-Director`. Remove or rename it before installing.
 
-## Dependencies
-
-- `pygltflib` (for FEAT-04 Rokoko retargeting)
-
 ## Rokoko Retarget JSON Format
 
-Export a retarget map from Rokoko Studio in this format:
+Export a retarget map from Rokoko Studio, or create a flat JSON dictionary. Drop it into the `retarget_maps/` folder.
 
-```json
-{
-  "retarget": [
-    { "source": "mixamorig:Hips",    "target": "Hips" },
-    { "source": "mixamorig:Spine",   "target": "Spine" },
-    { "source": "mixamorig:LeftArm", "target": "LeftArm" }
-  ]
-}
-```
+**Supported Formats:**
+- Flat Dictionary: `{"SourceBone": "TargetBone"}`
+- Rokoko Format: `{"bones": {"Key": ["SourceBone", "TargetBone"]}}`
 
 ## Credits
 

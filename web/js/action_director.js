@@ -611,6 +611,15 @@ class YedpViewport {
 
         this.uiSidebar.appendChild(lightPanel);
 
+        // ==================== NEW: NATIVE RETARGETING ====================
+        const retargetPanel = makePanel();
+        retargetPanel.appendChild(panelTitle("🦴 Retarget Map"));
+        this._retargetSelect = document.createElement("select");
+        Object.assign(this._retargetSelect.style, { width: "100%", background: "#111", color: "#fff", border: "1px solid #444", borderRadius: "3px", fontSize: "10px", padding: "2px", marginBottom: "4px" });
+        retargetPanel.appendChild(this._retargetSelect);
+        this.refreshRetargetMaps();
+        this.uiSidebar.appendChild(retargetPanel);
+
         // --- GIZMO TOOLS ---
         const gizmoPanel = makePanel();
         gizmoPanel.appendChild(panelTitle("Gizmo Tools"));
@@ -959,16 +968,19 @@ class YedpViewport {
         const isBVH = filename.toLowerCase().endsWith(".bvh");
         const url = `/view?filename=${filename}&type=input&subfolder=yedp_anims&t=${Date.now()}`;
 
-        // Fetch retarget bone map if available
+        // Fetch retarget bone map from UI selection
         let retargetMap = {};
         try {
-            const mapRes = await api.fetchApi("/yedp/retarget_bone_map");
-            const mapData = await mapRes.json();
-            if (mapData.bone_map && Object.keys(mapData.bone_map).length > 0) {
-                retargetMap = mapData.bone_map;
-                console.log(`[Yedp] Using retarget bone map (${Object.keys(retargetMap).length} mappings)`);
+            const selectedMap = this._retargetSelect ? this._retargetSelect.value : "None";
+            if (selectedMap !== "None") {
+                const mapRes = await api.fetchApi(`/yedp/retarget_maps/load/${encodeURIComponent(selectedMap)}`);
+                const mapData = await mapRes.json();
+                if (mapData.bone_map && Object.keys(mapData.bone_map).length > 0) {
+                    retargetMap = mapData.bone_map;
+                    console.log(`[Yedp] Using retarget map '${selectedMap}' (${Object.keys(retargetMap).length} mappings)`);
+                }
             }
-        } catch (e) { /* no map available, use semanticNormalize only */ }
+        } catch (e) { console.error("[Yedp] Failed to load retarget map", e); }
 
         try {
             let model;

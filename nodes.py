@@ -273,18 +273,43 @@ async def delete_preset(request):
 # =============================================================================
 # Retarget Bone Map API
 # =============================================================================
-YEDP_BONE_MAP = {}  # source_name -> target_name
+RETARGET_DIR = os.path.join(EXTENSION_DIR, "retarget_maps")
 
-@PromptServer.instance.routes.post("/yedp/retarget_bone_map")
-async def set_bone_map(request):
-    """Store a bone mapping for animation retargeting."""
-    global YEDP_BONE_MAP
-    data = await request.json()
-    YEDP_BONE_MAP = data.get("bone_map", {})
-    print(f"[Yedp] Bone map set: {len(YEDP_BONE_MAP)} mappings")
-    return web.json_response({"status": "ok", "count": len(YEDP_BONE_MAP)})
+@PromptServer.instance.routes.get("/yedp/retarget_maps/list")
+async def list_retarget_maps(request):
+    """Returns list of all retargeting JSON files."""
+    maps = ["None"] # Default option to skip retargeting
+    if os.path.isdir(RETARGET_DIR):
+        for f in sorted(os.listdir(RETARGET_DIR)):
+            if f.endswith(".json"):
+                maps.append(f)
+    return web.json_response({"maps": maps})
 
-@PromptServer.instance.routes.get("/yedp/retarget_bone_map")
-async def get_bone_map(request):
-    """Returns the current retarget bone map for JS to use."""
-    return web.json_response({"bone_map": YEDP_BONE_MAP})
+@PromptServer.instance.routes.get("/yedp/retarget_maps/load/{name}")
+async def load_retarget_map(request):
+    """Load a specific retarget map by filename."""
+    name = request.match_info["name"]
+    if name == "None":
+        return web.json_response({"bones": {}})
+
+    filepath = os.path.join(RETARGET_DIR, name)
+    if os.path.isfile(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            # Extract Rokoko format `{"bones": {"BoneName": ["Source", "Target"]}}`
+            # and flat format `{"Source": "Target"}`
+            mapping = {}
+            if "bones" in data:
+                for k, v in data["bones"].items():
+                    if isinstance(v, list) and len(v) >= 2:
+                        mapping[v[0]] = v[1]
+            else:
+                mapping = data
+                
+            return web.json_response({"bone_map": mapping})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    return web.json_response({"error": f"Map '{name}' not found"}, status=404)
