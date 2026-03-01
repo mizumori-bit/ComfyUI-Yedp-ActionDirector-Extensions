@@ -28,6 +28,22 @@ Camera control, lighting, and Rokoko retargeting extensions for [Yedp Action Dir
 - ⚠️ **Important Limitation:** This retargeting feature performs **simple string replacement of bone names** (e.g., renaming `chest_fk` to `Spine1`). It does **not** perform IK recalculations, roll angle correction, or rest pose (T-Pose vs A-Pose) alignment.
 - 💡 **Best Practice:** For pristine animation results, we strongly recommend using FBX/GLB files exported with a **Mixamo-based bone structure and standard T-Pose**. The built-in semantic normalizer will automatically map Mixamo bones correctly without needing a JSON file. If using non-Mixamo rigs (like Rigify), you will likely experience mangled skeletons due to differing axis orientations and rest poses.
 
+### FEAT-05: 5th "Shaded" Render Pass 🎨
+- Adds a `shaded` output pin to the node alongside Pose, Depth, Canny, and Normal passes.
+- Renders the model using its original materials combined with the custom lighting setup (FEAT-03), perfect for ControlNet (e.g., recolor) or direct composite reference.
+
+### FEAT-06: Direct Numeric Gizmo Manipulation
+- Adds a direct "Gizmo Tools" UI allowing users to move, rotate, and scale characters precisely.
+- Includes numerical input fields for Pos XYZ and Rot Y on the character card, which instantly sync with the 3D viewport.
+
+### FEAT-07: Payload Memory Caching (Anti-Crash)
+- Replaces standard ComfyUI frontend-to-backend base64 string passing with a robust Python-side dictionary cache (`YEDP_PAYLOAD_CACHE`).
+- Prevents the browser from freezing or ComfyUI from crashing when baking long animations that generate hundreds of megabytes of image data.
+
+### FEAT-08: Lossless PNG Output
+- Upgrades all render passes from lossy JPEG compression to pristine, lossless PNG format directly in the Three.js extraction loop.
+- Significantly improves the accuracy and edge-quality of Depth, Canny, and Normal maps fed into ControlNet.
+
 ## Installation
 
 ```bash
