@@ -37,7 +37,7 @@ const loadThreeJS = async () => {
             const { OrbitControls } = await import("https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js?deps=three@0.160.0");
             const { TransformControls } = await import("https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js?deps=three@0.160.0");
             const { GLTFLoader } = await import("https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js?deps=three@0.160.0");
-            await import("https://esm.sh/fflate@0.8.0"); 
+            await import("https://esm.sh/fflate@0.8.0");
             const { FBXLoader } = await import("https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js?deps=three@0.160.0");
             const { BVHLoader } = await import("https://esm.sh/three@0.160.0/examples/jsm/loaders/BVHLoader.js?deps=three@0.160.0");
             const { clone } = await import("https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js?deps=three@0.160.0");
@@ -85,7 +85,7 @@ const { BONE_MAP, BONE_KEYS_SORTED } = (() => {
     }
 
     const fingers = ["thumb", "index", "middle", "ring", "pinky"];
-    const sides = [ { canon: "lefthand", shorts: ["l", "left"] }, { canon: "righthand", shorts: ["r", "right"] } ];
+    const sides = [{ canon: "lefthand", shorts: ["l", "left"] }, { canon: "righthand", shorts: ["r", "right"] }];
 
     sides.forEach(side => {
         fingers.forEach(finger => {
@@ -112,7 +112,7 @@ const semanticNormalize = (name) => {
     if (!name) return "";
     let clean = name.split(/[:/|]/).pop();
     const lower = clean.toLowerCase();
-    
+
     if (lower === "l_foot" || lower === "left_foot") return BONE_MAP["lefttoebase"];
     if (lower === "r_foot" || lower === "right_foot") return BONE_MAP["righttoebase"];
     if (lower === "l_ankle" || lower === "left_ankle") return BONE_MAP["leftfoot"];
@@ -125,9 +125,9 @@ const semanticNormalize = (name) => {
     if (lower === "r_shoulder" || lower === "right_shoulder") return BONE_MAP["rightarm"];
 
     clean = clean.replace(/^(b_|j_bip_|bip_|cc_base_|def_|org_|mch_|mixamorig\d*_?|mixamo_?)/i, "")
-                 .replace(/(ik|fk|nub|end|twist\d*)$/i, "")
-                 .replace(/[\s\-_.[\]]+/g, "")
-                 .toLowerCase();
+        .replace(/(ik|fk|nub|end|twist\d*)$/i, "")
+        .replace(/[\s\-_.[\]]+/g, "")
+        .toLowerCase();
 
     if (BONE_MAP[clean]) return BONE_MAP[clean];
     for (const key of BONE_KEYS_SORTED) {
@@ -151,7 +151,7 @@ class CharacterInstance {
         this.poseMeshes = [];
         this.depthMeshesM = [];
         this.depthMeshesF = [];
-        
+
         this.skeletonHelper = new THREE.SkeletonHelper(this.scene);
         this.skeletonHelper.visible = true;
         this.animFile = "none";
@@ -160,10 +160,10 @@ class CharacterInstance {
         this.scene.position.set((id - 1) * 1.0, 0, 0);
 
         this.scene.traverse((child) => {
-            if(child.isMesh) {
-                child.visible = true; 
-                child.frustumCulled = false; 
-                
+            if (child.isMesh) {
+                child.visible = true;
+                child.frustumCulled = false;
+
                 // V9.7 FIX: Ancestry String Builder
                 // This solves Blender's 'Object vs Mesh Data' naming conflict 
                 // by flattening the entire parent chain into a single string.
@@ -184,11 +184,11 @@ class CharacterInstance {
                 } else if (n.includes("depthf") || n.includes("female") || n.includes("woman") || n.includes("|f|") || n.endsWith("f|")) {
                     this.hasFemaleMesh = true;
                     this.depthMeshesF.push(child);
-                    child.visible = false; 
+                    child.visible = false;
                     category = "Female Depth";
                 } else if (n.includes("depth") || n.includes("male") || n.includes("man")) {
                     this.depthMeshesM.push(child);
-                    child.visible = false; 
+                    child.visible = false;
                     category = "Male Depth";
                 } else {
                     // Prop Fallback: Any unclassified mesh (like a sword/hat) gets added to BOTH genders automatically
@@ -197,9 +197,9 @@ class CharacterInstance {
                     child.visible = false;
                     category = "Prop (Fallback)";
                 }
-                
+
                 // Verbose logging for transparent debugging of the exporter output
-                if(this.id === 1) {
+                if (this.id === 1) {
                     console.log(`[Yedp] Parsed Mesh: "${child.name}" -> categorized as [${category}]`);
                 }
             }
@@ -226,32 +226,44 @@ class YedpViewport {
         this.node = node;
         this.container = container;
         this.baseUrl = new URL(".", import.meta.url).href;
-        
+
         this.scene = null;
         this.camera = null;
         this.renderer = null;
         this.controls = null;
         this.transformControls = null;
         this.clock = null;
-        
+
         this.baseRig = null;
         this.characters = []; // Array of CharacterInstance
-        this.activeCharId = null; 
+        this.activeCharId = null;
         this.charCounter = 0;
 
         this.gridHelper = null;
         this.axesHelper = null;
-        this.semanticMap = new Map(); 
+        this.semanticMap = new Map();
 
         // Camera Keys
         this.camKeys = { start: null, end: null, ease: 'linear' };
-        
+
+        // FEAT-01: Projection state
+        this.projectionMode = 'perspective'; // 'perspective' | 'orthographic'
+        this.focalLength = 50.0;
+        this.orthoScale = 2.0;
+        this.orthoCamera = null; // will hold OrthographicCamera when needed
+        this.perspCamera = null; // will hold PerspectiveCamera
+
+        // FEAT-03: Lighting references
+        this.dirLight = null;
+        this.ambLight = null;
+        this.hemiLight = null;
+
         // Materials
         this.depthMat = null;
-        this.cannyMat = null; 
-        this.normalMat = null; 
+        this.cannyMat = null;
+        this.normalMat = null;
         this.originalMaterials = new Map();
-        
+
         // Control States
         this.isDepthMode = false;
         this.userNear = 0.1;
@@ -260,11 +272,11 @@ class YedpViewport {
         this.defaultFar = 100.0;
 
         this.isPlaying = false;
-        this.isBaking = false; 
-        
-        // V9.9 FIX: Fully decouple global internal time from UI slider to avoid fraction truncation freezes
+        this.isBaking = false;
+
+        // V9.9 FIX
         this.globalTime = 0;
-        
+
         this.renderWidth = 512;
         this.renderHeight = 512;
         this.availableAnimations = ["none"];
@@ -272,6 +284,8 @@ class YedpViewport {
         // UI references
         this.uiSidebar = null;
         this.uiCharList = null;
+        this._camInputs = {}; // FEAT-01: numeric input refs
+        this._suppressOrbitSync = false; // prevent feedback loops
 
         this.init();
     }
@@ -283,7 +297,7 @@ class YedpViewport {
             this.OrbitControls = libs.OrbitControls;
             this.TransformControls = libs.TransformControls;
             this.GLTFLoaderClass = libs.GLTFLoader;
-            this.FBXLoader = libs.FBXLoader; 
+            this.FBXLoader = libs.FBXLoader;
             this.BVHLoader = libs.BVHLoader;
             window._YEDP_SKEL_UTILS = libs.SkeletonUtils;
 
@@ -336,25 +350,34 @@ class YedpViewport {
             // --- 3D ENGINE SETUP ---
             this.clock = new this.THREE.Clock();
             this.scene = new this.THREE.Scene();
-            this.scene.background = new this.THREE.Color(0x1a1a1a); 
-            
-            this.scene.add(new this.THREE.AmbientLight(0xffffff, 1.2));
-            const dirLight = new this.THREE.DirectionalLight(0x00d2ff, 1.5);
-            dirLight.position.set(5, 10, 7);
-            this.scene.add(dirLight);
+            this.scene.background = new this.THREE.Color(0x1a1a1a);
+
+            // FEAT-03: Controllable lighting
+            this.ambLight = new this.THREE.AmbientLight(0xffffff, 0.4);
+            this.scene.add(this.ambLight);
+            this.dirLight = new this.THREE.DirectionalLight(0xffffff, 1.2);
+            this.dirLight.position.set(1.0, 2.0, 1.0);
+            this.scene.add(this.dirLight);
+            this.hemiLight = new this.THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.3);
+            this.scene.add(this.hemiLight);
 
             this.gridHelper = new this.THREE.GridHelper(10, 10, 0x444444, 0x222222);
             this.scene.add(this.gridHelper);
             this.axesHelper = new this.THREE.AxesHelper(1);
             this.scene.add(this.axesHelper);
 
-            this.camera = new this.THREE.PerspectiveCamera(45, 1, 0.01, 2000); 
-            this.camera.position.set(0, 1.2, 4);
-            
+            // FEAT-01: Both camera types ready
+            const fov = 2 * Math.atan(24 / (2 * this.focalLength)) * (180 / Math.PI);
+            this.perspCamera = new this.THREE.PerspectiveCamera(fov, 1, 0.01, 2000);
+            this.perspCamera.position.set(0, 1.5, 3.0);
+            this.orthoCamera = new this.THREE.OrthographicCamera(-2, 2, 2, -2, 0.01, 1000);
+            this.orthoCamera.position.set(0, 1.5, 3.0);
+            this.camera = this.perspCamera;
+
             this.renderer = new this.THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
             if (this.renderer.outputColorSpace) this.renderer.outputColorSpace = this.THREE.SRGBColorSpace;
             else this.renderer.outputEncoding = this.THREE.sRGBEncoding;
-            
+
             viewportDiv.appendChild(this.renderer.domElement);
             Object.assign(this.renderer.domElement.style, { width: "100%", height: "100%", display: "block" });
 
@@ -363,7 +386,7 @@ class YedpViewport {
             Object.assign(this.gate.style, {
                 position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
                 border: "2px solid #00d2ff", boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.65)", pointerEvents: "none", zIndex: "10",
-                boxSizing: "content-box" // Critical fix for preventing collapse
+                boxSizing: "content-box"
             });
             viewportDiv.appendChild(this.gate);
 
@@ -371,6 +394,11 @@ class YedpViewport {
             this.controls = new this.OrbitControls(this.camera, this.renderer.domElement);
             this.controls.target.set(0, 1, 0);
             this.controls.enableDamping = true;
+
+            // FEAT-01: Bidirectional sync — update numeric inputs when user orbits
+            this.controls.addEventListener('change', () => {
+                if (!this._suppressOrbitSync) this.syncCameraToInputs();
+            });
 
             this.transformControls = new this.TransformControls(this.camera, this.renderer.domElement);
             this.transformControls.addEventListener('dragging-changed', (event) => {
@@ -381,10 +409,10 @@ class YedpViewport {
             this.setupHeader(headerDiv);
             this.setupTimeline(timelineDiv);
             this.buildSidebar();
-            
+
             await this.fetchAnimations();
             await this.loadBaseRig();
-            
+
             this.hookNodeWidgets();
 
             const resizeObserver = new ResizeObserver(() => this.onResize(viewportDiv));
@@ -404,8 +432,8 @@ class YedpViewport {
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, 256, 256);
         const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-        grad.addColorStop(0.0, '#000000'); grad.addColorStop(0.75, '#000000'); 
-        grad.addColorStop(0.85, '#666666'); grad.addColorStop(1.0, '#ffffff'); 
+        grad.addColorStop(0.0, '#000000'); grad.addColorStop(0.75, '#000000');
+        grad.addColorStop(0.85, '#666666'); grad.addColorStop(1.0, '#ffffff');
         ctx.fillStyle = grad;
         ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.fill();
         const tex = new this.THREE.CanvasTexture(canvas);
@@ -432,15 +460,15 @@ class YedpViewport {
             </div>
         `;
 
-        div.querySelector("#inp-near").onchange = (e) => { this.userNear = parseFloat(e.target.value); if(this.isDepthMode) this.updateCameraBounds(); };
-        div.querySelector("#inp-far").onchange = (e) => { this.userFar = parseFloat(e.target.value); if(this.isDepthMode) this.updateCameraBounds(); };
+        div.querySelector("#inp-near").onchange = (e) => { this.userNear = parseFloat(e.target.value); if (this.isDepthMode) this.updateCameraBounds(); };
+        div.querySelector("#inp-far").onchange = (e) => { this.userFar = parseFloat(e.target.value); if (this.isDepthMode) this.updateCameraBounds(); };
         div.querySelector("#chk-depth").onchange = (e) => {
             const act = e.target.checked;
             div.querySelector("#depth-ctrls").style.opacity = act ? "1.0" : "0.5";
             this.toggleDepthMode(act);
         };
         div.querySelector("#chk-skel").onchange = (e) => {
-            this.characters.forEach(c => { if(c.skeletonHelper) c.skeletonHelper.visible = e.target.checked; });
+            this.characters.forEach(c => { if (c.skeletonHelper) c.skeletonHelper.visible = e.target.checked; });
         };
         div.querySelector("#btn-bake").onclick = () => this.performBatchRender();
     }
@@ -452,38 +480,38 @@ class YedpViewport {
                 <input type="range" id="t-slider" min="0" max="100" value="0" step="1" style="flex:1;cursor:pointer;">
                 <span id="t-time" style="font-family:monospace;font-size:10px;color:#888;min-width:70px;text-align:right;">0 / 0</span>
             </div>`;
-        
+
         const btn = div.querySelector("#btn-play");
         const slider = div.querySelector("#t-slider");
         const lbl = div.querySelector("#t-time");
-        
+
         btn.onclick = () => { this.isPlaying = !this.isPlaying; btn.innerText = this.isPlaying ? "⏸" : "▶"; };
         slider.onmousedown = () => { this.isDraggingSlider = true; this.isPlaying = false; btn.innerText = "▶"; };
         slider.onmouseup = () => { this.isDraggingSlider = false; };
-        
+
         slider.oninput = (e) => {
             const frame = parseInt(e.target.value);
             const totalFrames = this.getWidgetValue("frame_count", 48);
             const fps = this.getWidgetValue("fps", 24);
-            
+
             // V9.9 FIX: Set the exact float time from the scrubber
             this.globalTime = frame / fps;
-            
+
             this.characters.forEach(c => {
-                if(c.action && c.duration > 0) { 
+                if (c.action && c.duration > 0) {
                     c.action.time = c.loop ? (this.globalTime % c.duration) : Math.min(this.globalTime, c.duration);
-                    c.mixer.update(0); 
+                    c.mixer.update(0);
                 }
             });
             lbl.innerText = `${frame} / ${totalFrames}`;
-            
+
             // Preview camera if scrubbing
             this.applyCameraKeyframes(frame / Math.max(1, totalFrames - 1));
         };
     }
 
     buildSidebar() {
-        const createBtn = (text, color="#444", hover="#555") => {
+        const createBtn = (text, color = "#444", hover = "#555") => {
             const b = document.createElement("button");
             b.innerText = text;
             Object.assign(b.style, { background: color, color: "#fff", border: "1px solid #555", borderRadius: "3px", cursor: "pointer", padding: "4px", fontSize: "10px", flex: "1" });
@@ -491,89 +519,274 @@ class YedpViewport {
             b.onmouseout = () => b.style.background = color;
             return b;
         };
+        const numInput = (val, step = "0.1", w = "48px") => {
+            const inp = document.createElement("input");
+            inp.type = "number"; inp.step = step; inp.value = val;
+            Object.assign(inp.style, { width: w, background: "#111", color: "#fff", border: "1px solid #444", fontSize: "10px", padding: "1px 2px", borderRadius: "2px" });
+            return inp;
+        };
+        const labelSpan = (txt) => { const s = document.createElement("span"); s.innerText = txt; s.style.color = "#888"; s.style.fontSize = "9px"; s.style.minWidth = "12px"; return s; };
+        const makeRow = (...els) => { const r = document.createElement("div"); r.style.display = "flex"; r.style.gap = "3px"; r.style.alignItems = "center"; r.style.marginBottom = "3px"; els.forEach(e => r.appendChild(e)); return r; };
+        const panelTitle = (text) => { const d = document.createElement("div"); d.style.marginBottom = "4px"; d.style.fontWeight = "bold"; d.style.color = "#aaa"; d.innerText = text; return d; };
+        const makePanel = () => { const p = document.createElement("div"); p.style.background = "#222"; p.style.padding = "6px"; p.style.borderRadius = "4px"; return p; };
+
+        // ==================== FEAT-01: CAMERA CONTROL ====================
+        const camCtrlPanel = makePanel();
+        camCtrlPanel.appendChild(panelTitle("📷 Camera Control"));
+
+        // Projection toggle
+        const btnPersp = createBtn("Perspective", "#335", "#447");
+        const btnOrtho = createBtn("Orthographic", "#444", "#555");
+        btnPersp.onclick = () => this.switchProjection("perspective");
+        btnOrtho.onclick = () => this.switchProjection("orthographic");
+        this._camInputs.btnPersp = btnPersp;
+        this._camInputs.btnOrtho = btnOrtho;
+        camCtrlPanel.appendChild(makeRow(btnPersp, btnOrtho));
+
+        // FOV / Ortho Scale
+        const inpFocal = numInput(50, "1", "44px");
+        const inpOrthoS = numInput(2.0, "0.1", "44px");
+        inpFocal.onchange = () => { this.focalLength = parseFloat(inpFocal.value); this.applyFocalLength(); };
+        inpOrthoS.onchange = () => { this.orthoScale = parseFloat(inpOrthoS.value); this.applyOrthoScale(); };
+        this._camInputs.focal = inpFocal;
+        this._camInputs.orthoScale = inpOrthoS;
+        camCtrlPanel.appendChild(makeRow(labelSpan("FL"), inpFocal, labelSpan("OrtS"), inpOrthoS));
+
+        // Position X Y Z
+        const inpPX = numInput(0, "0.1", "44px"), inpPY = numInput(1.5, "0.1", "44px"), inpPZ = numInput(3, "0.1", "44px");
+        const applyPos = () => { this._suppressOrbitSync = true; this.camera.position.set(parseFloat(inpPX.value), parseFloat(inpPY.value), parseFloat(inpPZ.value)); this.controls.update(); this._suppressOrbitSync = false; };
+        inpPX.onchange = inpPY.onchange = inpPZ.onchange = applyPos;
+        this._camInputs.px = inpPX; this._camInputs.py = inpPY; this._camInputs.pz = inpPZ;
+        camCtrlPanel.appendChild(makeRow(labelSpan("Pos"), inpPX, inpPY, inpPZ));
+
+        // Target X Y Z
+        const inpTX = numInput(0, "0.1", "44px"), inpTY = numInput(1, "0.1", "44px"), inpTZ = numInput(0, "0.1", "44px");
+        const applyTarget = () => { this._suppressOrbitSync = true; this.controls.target.set(parseFloat(inpTX.value), parseFloat(inpTY.value), parseFloat(inpTZ.value)); this.controls.update(); this._suppressOrbitSync = false; };
+        inpTX.onchange = inpTY.onchange = inpTZ.onchange = applyTarget;
+        this._camInputs.tx = inpTX; this._camInputs.ty = inpTY; this._camInputs.tz = inpTZ;
+        camCtrlPanel.appendChild(makeRow(labelSpan("Tgt"), inpTX, inpTY, inpTZ));
+
+        this.uiSidebar.appendChild(camCtrlPanel);
+
+        // ==================== FEAT-02: CAMERA PRESETS ====================
+        const presetPanel = makePanel();
+        presetPanel.appendChild(panelTitle("🎯 Camera Presets"));
+
+        const selPreset = document.createElement("select");
+        Object.assign(selPreset.style, { width: "100%", background: "#111", color: "#fff", border: "1px solid #444", borderRadius: "3px", fontSize: "10px", padding: "2px", marginBottom: "4px" });
+        this._presetSelect = selPreset;
+
+        const btnLoadPreset = createBtn("Load", "#335", "#447");
+        btnLoadPreset.onclick = () => this.loadPreset(selPreset.value);
+        const btnSavePreset = createBtn("Save As...", "#253", "#374");
+        btnSavePreset.onclick = () => this.savePresetPrompt();
+        const btnDelPreset = createBtn("Del", "#522", "#733");
+        btnDelPreset.onclick = () => this.deletePreset(selPreset.value);
+
+        presetPanel.appendChild(selPreset);
+        presetPanel.appendChild(makeRow(btnLoadPreset, btnSavePreset, btnDelPreset));
+        this.uiSidebar.appendChild(presetPanel);
+        this.refreshPresetList();
+
+        // ==================== FEAT-03: LIGHTING CONTROL ====================
+        const lightPanel = makePanel();
+        lightPanel.appendChild(panelTitle("💡 Lighting"));
+
+        // Directional light
+        const inpDX = numInput(1, "0.1", "36px"), inpDY = numInput(2, "0.1", "36px"), inpDZ = numInput(1, "0.1", "36px");
+        const inpDI = numInput(1.2, "0.1", "36px");
+        const applyDir = () => { this.dirLight.position.set(parseFloat(inpDX.value), parseFloat(inpDY.value), parseFloat(inpDZ.value)); this.dirLight.intensity = parseFloat(inpDI.value); };
+        inpDX.onchange = inpDY.onchange = inpDZ.onchange = inpDI.onchange = applyDir;
+        lightPanel.appendChild(makeRow(labelSpan("Dir"), inpDX, inpDY, inpDZ, inpDI));
+
+        // Ambient light
+        const inpAI = numInput(0.4, "0.1", "40px");
+        inpAI.onchange = () => { this.ambLight.intensity = parseFloat(inpAI.value); };
+        lightPanel.appendChild(makeRow(labelSpan("Amb Int"), inpAI));
+
+        // Hemisphere light
+        const inpHI = numInput(0.3, "0.1", "40px");
+        inpHI.onchange = () => { this.hemiLight.intensity = parseFloat(inpHI.value); };
+        lightPanel.appendChild(makeRow(labelSpan("Hemi Int"), inpHI));
+
+        this.uiSidebar.appendChild(lightPanel);
 
         // --- GIZMO TOOLS ---
-        const gizmoPanel = document.createElement("div");
-        gizmoPanel.style.background = "#222"; gizmoPanel.style.padding = "6px"; gizmoPanel.style.borderRadius = "4px";
-        gizmoPanel.innerHTML = `<div style="margin-bottom:4px;font-weight:bold;color:#aaa;">Gizmo Tools</div>`;
-        
+        const gizmoPanel = makePanel();
+        gizmoPanel.appendChild(panelTitle("Gizmo Tools"));
         const gizmoRow = document.createElement("div");
         gizmoRow.style.display = "flex"; gizmoRow.style.gap = "4px";
-        
-        const btnMove = createBtn("Move");
-        const btnRot = createBtn("Rotate");
-        const btnScale = createBtn("Scale");
+        const btnMove = createBtn("Move"), btnRot = createBtn("Rotate"), btnScale = createBtn("Scale");
         const btnDeselect = createBtn("Deselect", "#522", "#733");
-        
         btnMove.onclick = () => this.transformControls.setMode("translate");
         btnRot.onclick = () => this.transformControls.setMode("rotate");
         btnScale.onclick = () => this.transformControls.setMode("scale");
         btnDeselect.onclick = () => { this.transformControls.detach(); this.activeCharId = null; this.refreshSidebarHighlights(); };
-        
         gizmoRow.append(btnMove, btnRot, btnScale, btnDeselect);
         gizmoPanel.appendChild(gizmoRow);
         this.uiSidebar.appendChild(gizmoPanel);
 
-        // --- CAMERA SEQUENCE ---
-        const camPanel = document.createElement("div");
-        camPanel.style.background = "#222"; camPanel.style.padding = "6px"; camPanel.style.borderRadius = "4px";
-        camPanel.innerHTML = `<div style="margin-bottom:4px;font-weight:bold;color:#aaa;">Camera Sequence</div>`;
-        
+        // --- CAMERA SEQUENCE (existing keyframe system) ---
+        const camSeqPanel = makePanel();
+        camSeqPanel.appendChild(panelTitle("Camera Sequence"));
         const camRow1 = document.createElement("div"); camRow1.style.display = "flex"; camRow1.style.gap = "4px"; camRow1.style.marginBottom = "4px";
-        const btnSetStart = createBtn("Set Start");
-        const btnSetEnd = createBtn("Set End");
-        
+        const btnSetStart = createBtn("Set Start"), btnSetEnd = createBtn("Set End");
         btnSetStart.onclick = () => {
-            this.camKeys.start = { 
-                pos: this.camera.position.clone(), 
-                quat: this.camera.quaternion.clone(),
-                target: this.controls.target.clone() // Fixed: Also save the OrbitControls target for panning
-            };
+            this.camKeys.start = { pos: this.camera.position.clone(), quat: this.camera.quaternion.clone(), target: this.controls.target.clone() };
             btnSetStart.innerText = "Start Set ✓"; btnSetStart.style.borderColor = "#0f0";
         };
         btnSetEnd.onclick = () => {
-            this.camKeys.end = { 
-                pos: this.camera.position.clone(), 
-                quat: this.camera.quaternion.clone(),
-                target: this.controls.target.clone() // Fixed: Also save the OrbitControls target for panning
-            };
+            this.camKeys.end = { pos: this.camera.position.clone(), quat: this.camera.quaternion.clone(), target: this.controls.target.clone() };
             btnSetEnd.innerText = "End Set ✓"; btnSetEnd.style.borderColor = "#0f0";
         };
-        
         const camRow2 = document.createElement("div"); camRow2.style.display = "flex"; camRow2.style.gap = "4px";
         const selEase = document.createElement("select");
         Object.assign(selEase.style, { flex: "1", background: "#111", color: "#fff", border: "1px solid #444", borderRadius: "3px", fontSize: "10px", padding: "2px" });
         ['linear', 'easeIn', 'easeOut', 'easeInOut'].forEach(e => selEase.add(new Option(e, e)));
         selEase.onchange = (e) => this.camKeys.ease = e.target.value;
-        
         const btnClearCam = createBtn("Clear", "#522", "#733");
-        btnClearCam.onclick = () => {
-            this.camKeys.start = null; this.camKeys.end = null;
-            btnSetStart.innerText = "Set Start"; btnSetStart.style.borderColor = "#555";
-            btnSetEnd.innerText = "Set End"; btnSetEnd.style.borderColor = "#555";
-        };
-
+        btnClearCam.onclick = () => { this.camKeys.start = null; this.camKeys.end = null; btnSetStart.innerText = "Set Start"; btnSetStart.style.borderColor = "#555"; btnSetEnd.innerText = "Set End"; btnSetEnd.style.borderColor = "#555"; };
         camRow1.append(btnSetStart, btnSetEnd);
         camRow2.append(selEase, btnClearCam);
-        camPanel.append(camRow1, camRow2);
-        this.uiSidebar.appendChild(camPanel);
+        camSeqPanel.append(camRow1, camRow2);
+        this.uiSidebar.appendChild(camSeqPanel);
 
         // --- CHARACTERS HEADER ---
         const charHeader = document.createElement("div");
         charHeader.style.display = "flex"; charHeader.style.justifyContent = "space-between"; charHeader.style.alignItems = "center";
         charHeader.innerHTML = `<span style="font-weight:bold;color:#aaa;">Characters</span>`;
-        
         const btnAddChar = createBtn("+ Add Char", "#252", "#373");
         btnAddChar.style.flex = "none"; btnAddChar.style.padding = "2px 6px";
         btnAddChar.onclick = () => this.addCharacter();
         charHeader.appendChild(btnAddChar);
-        
         this.uiSidebar.appendChild(charHeader);
 
         // --- CHARACTER LIST CONTAINER ---
         this.uiCharList = document.createElement("div");
         this.uiCharList.style.display = "flex"; this.uiCharList.style.flexDirection = "column"; this.uiCharList.style.gap = "6px";
         this.uiSidebar.appendChild(this.uiCharList);
+    }
+
+    // ==================== FEAT-01: Camera Methods ====================
+    switchProjection(mode) {
+        this.projectionMode = mode;
+        const pos = this.camera.position.clone();
+        const target = this.controls.target.clone();
+
+        if (mode === 'orthographic') {
+            this.orthoCamera.position.copy(pos);
+            this.orthoCamera.quaternion.copy(this.camera.quaternion);
+            this.camera = this.orthoCamera;
+            this.applyOrthoScale();
+            if (this._camInputs.btnPersp) { this._camInputs.btnPersp.style.background = "#444"; this._camInputs.btnOrtho.style.background = "#335"; }
+        } else {
+            this.perspCamera.position.copy(pos);
+            this.perspCamera.quaternion.copy(this.camera.quaternion);
+            this.camera = this.perspCamera;
+            this.applyFocalLength();
+            if (this._camInputs.btnPersp) { this._camInputs.btnPersp.style.background = "#335"; this._camInputs.btnOrtho.style.background = "#444"; }
+        }
+
+        // Rebind controls to new camera
+        this.controls.object = this.camera;
+        this.controls.target.copy(target);
+        this.controls.update();
+        // Rebind transform controls
+        if (this.transformControls) this.transformControls.camera = this.camera;
+        this.onResize(this.container.querySelector(".yedp-vp-area"));
+    }
+
+    applyFocalLength() {
+        if (!this.perspCamera) return;
+        const fov = 2 * Math.atan(24 / (2 * this.focalLength)) * (180 / Math.PI);
+        this.perspCamera.fov = fov;
+        this.perspCamera.updateProjectionMatrix();
+    }
+
+    applyOrthoScale() {
+        if (!this.orthoCamera) return;
+        const aspect = this.renderWidth / this.renderHeight;
+        this.orthoCamera.left = -this.orthoScale * aspect;
+        this.orthoCamera.right = this.orthoScale * aspect;
+        this.orthoCamera.top = this.orthoScale;
+        this.orthoCamera.bottom = -this.orthoScale;
+        this.orthoCamera.updateProjectionMatrix();
+    }
+
+    syncCameraToInputs() {
+        const ci = this._camInputs;
+        if (!ci.px) return;
+        ci.px.value = this.camera.position.x.toFixed(2);
+        ci.py.value = this.camera.position.y.toFixed(2);
+        ci.pz.value = this.camera.position.z.toFixed(2);
+        ci.tx.value = this.controls.target.x.toFixed(2);
+        ci.ty.value = this.controls.target.y.toFixed(2);
+        ci.tz.value = this.controls.target.z.toFixed(2);
+    }
+
+    // ==================== FEAT-02: Preset Methods ====================
+    async refreshPresetList() {
+        try {
+            const res = await api.fetchApi("/yedp/camera_presets/list");
+            const data = await res.json();
+            if (this._presetSelect && data.presets) {
+                this._presetSelect.innerHTML = "";
+                data.presets.forEach(name => this._presetSelect.add(new Option(name, name)));
+            }
+        } catch (e) { console.warn("[Yedp] Failed to fetch presets:", e); }
+    }
+
+    async loadPreset(name) {
+        if (!name) return;
+        try {
+            const res = await api.fetchApi(`/yedp/camera_presets/load/${encodeURIComponent(name)}`);
+            const data = await res.json();
+            if (data.error) { console.warn(data.error); return; }
+            const cam = data.camera;
+            if (!cam) return;
+
+            // Apply projection
+            if (cam.projection) this.switchProjection(cam.projection);
+            if (cam.focal_length) { this.focalLength = cam.focal_length; if (this._camInputs.focal) this._camInputs.focal.value = cam.focal_length; this.applyFocalLength(); }
+            if (cam.ortho_scale) { this.orthoScale = cam.ortho_scale; if (this._camInputs.orthoScale) this._camInputs.orthoScale.value = cam.ortho_scale; this.applyOrthoScale(); }
+
+            // Apply position
+            if (cam.position) {
+                this.camera.position.set(cam.position.x, cam.position.y, cam.position.z);
+            }
+            // We look towards target for presets instead of using rotation directly
+            if (cam.position) this.controls.target.set(0, 1, 0); // default target
+            this.controls.update();
+            this.syncCameraToInputs();
+            console.log(`[Yedp] Loaded preset: ${name}`);
+        } catch (e) { console.error("[Yedp] Preset load error:", e); }
+    }
+
+    async savePresetPrompt() {
+        const name = prompt("Preset name:");
+        if (!name || !name.trim()) return;
+        const data = {
+            preset_name: name.trim(),
+            camera: {
+                position: { x: +this.camera.position.x.toFixed(3), y: +this.camera.position.y.toFixed(3), z: +this.camera.position.z.toFixed(3) },
+                rotation: { x: 0, y: 0, z: 0 },
+                focal_length: this.focalLength,
+                projection: this.projectionMode,
+                ortho_scale: this.orthoScale
+            }
+        };
+        try {
+            await api.fetchApi("/yedp/camera_presets/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+            this.refreshPresetList();
+        } catch (e) { console.error("[Yedp] Save error:", e); }
+    }
+
+    async deletePreset(name) {
+        if (!name || !confirm(`Delete preset "${name}"?`)) return;
+        try {
+            await api.fetchApi(`/yedp/camera_presets/delete/${encodeURIComponent(name)}`, { method: "DELETE" });
+            this.refreshPresetList();
+        } catch (e) { console.error("[Yedp] Delete error:", e); }
     }
 
     refreshSidebarHighlights() {
@@ -589,46 +802,46 @@ class YedpViewport {
             const card = document.createElement("div");
             card.dataset.id = c.id;
             Object.assign(card.style, { background: "#222", border: "1px solid #444", borderRadius: "4px", padding: "6px" });
-            
+
             const head = document.createElement("div");
             head.style.display = "flex"; head.style.justifyContent = "space-between"; head.style.marginBottom = "2px";
             head.innerHTML = `<span style="font-weight:bold; font-size:12px;">Char ${c.id}</span>`;
-            
+
             const actBox = document.createElement("div"); actBox.style.display = "flex"; actBox.style.gap = "4px";
             const btnSel = document.createElement("button"); btnSel.innerText = "Select";
             Object.assign(btnSel.style, { background: "#444", color: "#fff", border: "1px solid #555", borderRadius: "2px", cursor: "pointer", fontSize: "9px" });
             btnSel.onclick = () => { this.activeCharId = c.id; this.transformControls.attach(c.scene); this.refreshSidebarHighlights(); };
-            
+
             const btnDel = document.createElement("button"); btnDel.innerText = "X";
             Object.assign(btnDel.style, { background: "#622", color: "#fff", border: "1px solid #555", borderRadius: "2px", cursor: "pointer", fontSize: "9px" });
             btnDel.onclick = () => this.removeCharacter(c.id);
-            
+
             actBox.append(btnSel, btnDel);
             head.appendChild(actBox);
-            
+
             // V9.7 Debug Info to show exactly what meshes got parsed successfully
             const meshInfo = document.createElement("div");
             meshInfo.style.fontSize = "9px";
             meshInfo.style.color = "#888";
             meshInfo.style.marginBottom = "4px";
             meshInfo.innerText = `[M:${c.depthMeshesM.length} | F:${c.depthMeshesF.length} | Pose:${c.poseMeshes.length}]`;
-            
+
             const selAnim = document.createElement("select");
             Object.assign(selAnim.style, { width: "100%", background: "#111", color: "#fff", border: "1px solid #444", borderRadius: "3px", fontSize: "10px", padding: "2px", marginBottom: "4px" });
             this.availableAnimations.forEach(anim => selAnim.add(new Option(anim, anim)));
             selAnim.value = c.animFile;
             selAnim.onchange = (e) => this.loadAnimationForChar(c, e.target.value);
-            
+
             const foot = document.createElement("div"); foot.style.display = "flex"; foot.style.justifyContent = "space-between"; foot.style.alignItems = "center";
-            
+
             // Loop & Gender Box
             const loopBox = document.createElement("div");
             loopBox.style.display = "flex"; loopBox.style.alignItems = "center"; loopBox.style.gap = "6px";
-            
+
             const btnGender = document.createElement("button");
             btnGender.innerText = c.gender;
             Object.assign(btnGender.style, {
-                background: "#111", border: "1px solid #444", borderRadius: "3px", 
+                background: "#111", border: "1px solid #444", borderRadius: "3px",
                 cursor: "pointer", fontSize: "10px", padding: "1px 6px", fontWeight: "bold",
                 color: c.gender === 'F' ? '#ff66b2' : '#66b2ff'
             });
@@ -641,9 +854,9 @@ class YedpViewport {
 
             const lblLoop = document.createElement("label"); lblLoop.style.cursor = "pointer"; lblLoop.style.display = "flex"; lblLoop.style.gap = "2px";
             const chkLoop = document.createElement("input"); chkLoop.type = "checkbox"; chkLoop.checked = c.loop;
-            chkLoop.onchange = (e) => { c.loop = e.target.checked; if(c.action) { c.action.setLoop(c.loop ? this.THREE.LoopRepeat : this.THREE.LoopOnce); c.action.clampWhenFinished = !c.loop; }};
+            chkLoop.onchange = (e) => { c.loop = e.target.checked; if (c.action) { c.action.setLoop(c.loop ? this.THREE.LoopRepeat : this.THREE.LoopOnce); c.action.clampWhenFinished = !c.loop; } };
             lblLoop.append(chkLoop, "Loop");
-            
+
             loopBox.append(btnGender, lblLoop);
 
             const lblDur = document.createElement("span");
@@ -651,7 +864,7 @@ class YedpViewport {
             lblDur.innerText = c.duration > 0 ? `${Math.floor(c.duration * fps)}f` : "--";
             lblDur.id = `dur-${c.id}`;
             lblDur.style.color = "#888"; lblDur.style.fontFamily = "monospace";
-            
+
             foot.append(loopBox, lblDur);
             card.append(head, meshInfo, selAnim, foot);
             this.uiCharList.appendChild(card);
@@ -665,7 +878,7 @@ class YedpViewport {
             const res = await api.fetchApi("/yedp/get_animations");
             const data = await res.json();
             if (data.files && data.files.length > 0) this.availableAnimations = data.files;
-        } catch(e) { console.error("Failed to fetch animations."); }
+        } catch (e) { console.error("Failed to fetch animations."); }
     }
 
     async loadBaseRig() {
@@ -676,14 +889,14 @@ class YedpViewport {
         console.log("[Yedp] Loading Base Rig from:", rigUrl);
         const gltf = await loader.loadAsync(rigUrl);
         this.baseRig = gltf.scene;
-        
+
         this.baseRig.traverse((child) => {
-            if(child.isBone || child.type === "Bone" || child.isObject3D) {
+            if (child.isBone || child.type === "Bone" || child.isObject3D) {
                 const normalized = semanticNormalize(child.name);
                 if (normalized) this.semanticMap.set(normalized, child.name);
             }
         });
-        
+
         // Spawn first character automatically
         this.addCharacter();
     }
@@ -709,35 +922,35 @@ class YedpViewport {
     }
 
     async loadAnimationForChar(charObj, filename) {
-        if(!filename || filename === "none") return;
+        if (!filename || filename === "none") return;
         charObj.animFile = filename;
         const isFBX = filename.toLowerCase().endsWith(".fbx");
         const isBVH = filename.toLowerCase().endsWith(".bvh");
         // V9.8 FIX: Cache Buster for animations too, just in case you overwrite an FBX.
         const url = `/view?filename=${filename}&type=input&subfolder=yedp_anims&t=${Date.now()}`;
-        
+
         try {
             let model;
-            if(isFBX) model = await new this.FBXLoader().loadAsync(url);
+            if (isFBX) model = await new this.FBXLoader().loadAsync(url);
             else if (isBVH) model = await new this.BVHLoader().loadAsync(url);
             else model = await new this.GLTFLoaderClass().loadAsync(url);
 
             let clip = isBVH ? model.clip : (model.animations?.[0] || model.scene?.animations?.[0] || model.asset?.animations?.[0]);
 
-            if(clip) {
+            if (clip) {
                 const tracks = [];
                 clip.tracks.forEach(t => {
                     const lastDot = t.name.lastIndexOf(".");
                     const prop = t.name.substring(lastDot + 1);
                     const fullBonePath = t.name.substring(0, lastDot);
                     const normalizedTrackBone = semanticNormalize(fullBonePath);
-                    
-                    if (prop === "scale") return; 
 
-                    if(this.semanticMap.has(normalizedTrackBone)) {
+                    if (prop === "scale") return;
+
+                    if (this.semanticMap.has(normalizedTrackBone)) {
                         const targetRealName = this.semanticMap.get(normalizedTrackBone);
-                        const tc = t.clone(); 
-                        
+                        const tc = t.clone();
+
                         // V9.9 FIX: Removed completely the aggressive positional override.
                         // Root motions, jumps, and world-space paths are now perfectly preserved!
                         tc.name = `${targetRealName}.${prop}`;
@@ -748,27 +961,27 @@ class YedpViewport {
                 const cleanClip = new this.THREE.AnimationClip(clip.name, clip.duration, tracks);
                 charObj.mixer.stopAllAction();
                 charObj.mixer.uncacheRoot(charObj.scene);
-                
+
                 charObj.action = charObj.mixer.clipAction(cleanClip);
                 charObj.action.setLoop(charObj.loop ? this.THREE.LoopRepeat : this.THREE.LoopOnce);
                 charObj.action.clampWhenFinished = !charObj.loop;
                 charObj.action.reset().setEffectiveWeight(1).play();
-                charObj.mixer.update(0); 
+                charObj.mixer.update(0);
 
                 charObj.duration = cleanClip.duration;
-                
+
                 // Update label
                 const lbl = document.getElementById(`dur-${charObj.id}`);
                 if (lbl) {
                     const fps = this.getWidgetValue("fps", 24);
                     lbl.innerText = `${Math.floor(charObj.duration * fps)}f`;
                 }
-                
+
                 this.isPlaying = true;
                 const btn = this.container.querySelector("#btn-play");
-                if(btn) btn.innerText = "⏸";
+                if (btn) btn.innerText = "⏸";
             }
-        } catch(e) { console.error("Anim Load Error:", e); }
+        } catch (e) { console.error("Anim Load Error:", e); }
     }
 
     applyCameraKeyframes(timeRatio) {
@@ -781,7 +994,7 @@ class YedpViewport {
 
         this.camera.position.lerpVectors(this.camKeys.start.pos, this.camKeys.end.pos, t);
         this.camera.quaternion.slerpQuaternions(this.camKeys.start.quat, this.camKeys.end.quat, t);
-        
+
         // Fixed: Lerp OrbitControls target for panning and zooming support
         if (this.controls && this.camKeys.start.target && this.camKeys.end.target) {
             this.controls.target.lerpVectors(this.camKeys.start.target, this.camKeys.end.target, t);
@@ -802,29 +1015,29 @@ class YedpViewport {
             // This allows the animation to play perfectly smoothly regardless of fractional FPS steps.
             this.globalTime += delta;
             const totalDuration = totalFrames / fps;
-            
+
             // Global Loop
             if (this.globalTime >= totalDuration) {
-                this.globalTime = this.globalTime % totalDuration; 
+                this.globalTime = this.globalTime % totalDuration;
             }
-            
+
             const currentFrame = Math.floor(this.globalTime * fps);
-            
+
             // Only update the slider visuals without triggering a fractional math error
             const slider = this.container.querySelector("#t-slider");
             if (slider && !this.isDraggingSlider) {
                 slider.value = currentFrame;
             }
-            
+
             const timeLabel = this.container.querySelector("#t-time");
             if (timeLabel) {
                 timeLabel.innerText = `${currentFrame} / ${totalFrames}`;
             }
 
             const t = this.globalTime;
-            
+
             this.characters.forEach(c => {
-                if(c.action && c.duration > 0) {
+                if (c.action && c.duration > 0) {
                     c.action.time = c.loop ? (t % c.duration) : Math.min(t, c.duration);
                     c.mixer.update(0); // strict evaluate
                 }
@@ -832,7 +1045,7 @@ class YedpViewport {
 
             this.applyCameraKeyframes(currentFrame / Math.max(1, totalFrames - 1));
         }
-        
+
         if (this.controls) this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
@@ -842,19 +1055,19 @@ class YedpViewport {
         this.characters.forEach(c => {
             // Keep inactive meshes hidden at all times
             c.inactiveDepthMeshes.forEach(m => m.visible = false);
-            
+
             c.activeDepthMeshes.forEach(m => m.visible = active);
             c.poseMeshes.forEach(m => m.visible = !active);
-            
+
             if (active) {
-                 c.activeDepthMeshes.forEach(m => {
-                     if(m.isMesh && !this.originalMaterials.has(m)) this.originalMaterials.set(m, m.material);
-                     m.material = this.depthMat;
-                 });
+                c.activeDepthMeshes.forEach(m => {
+                    if (m.isMesh && !this.originalMaterials.has(m)) this.originalMaterials.set(m, m.material);
+                    m.material = this.depthMat;
+                });
             } else {
                 // Restore all materials unconditionally just to be safe
-                c.depthMeshesM.forEach(m => { if(this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
-                c.depthMeshesF.forEach(m => { if(this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
+                c.depthMeshesM.forEach(m => { if (this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
+                c.depthMeshesF.forEach(m => { if (this.originalMaterials.has(m)) m.material = this.originalMaterials.get(m); });
             }
         });
 
@@ -863,13 +1076,13 @@ class YedpViewport {
     }
 
     updateCameraBounds() {
-        if(!this.camera) return;
+        if (!this.camera) return;
         this.camera.near = Math.max(0.01, this.userNear);
         this.camera.far = Math.max(0.1, this.userFar);
         this.camera.updateProjectionMatrix();
     }
     resetCamera() {
-        if(!this.camera) return;
+        if (!this.camera) return;
         this.camera.near = this.defaultNear;
         this.camera.far = this.defaultFar;
         this.camera.updateProjectionMatrix();
@@ -877,38 +1090,38 @@ class YedpViewport {
 
     hookNodeWidgets() {
         const updateDim = (w, val) => {
-            if(w && w.name === "width") this.renderWidth = val; 
-            else if(w && w.name === "height") this.renderHeight = val;
-            
+            if (w && w.name === "width") this.renderWidth = val;
+            else if (w && w.name === "height") this.renderHeight = val;
+
             const lbl = this.container.querySelector("#lbl-res");
-            if(lbl) lbl.innerText = `${this.renderWidth}x${this.renderHeight}`;
+            if (lbl) lbl.innerText = `${this.renderWidth}x${this.renderHeight}`;
             this.onResize(this.container.querySelector(".yedp-vp-area"));
         };
 
         const wWidget = this.node.widgets?.find(w => w.name === "width");
         const hWidget = this.node.widgets?.find(w => w.name === "height");
-        
-        if(wWidget) { 
-            this.renderWidth = wWidget.value; 
-            const orig = wWidget.callback; 
-            wWidget.callback = v => { updateDim(wWidget, v); if(orig) orig(v); };
+
+        if (wWidget) {
+            this.renderWidth = wWidget.value;
+            const orig = wWidget.callback;
+            wWidget.callback = v => { updateDim(wWidget, v); if (orig) orig(v); };
         }
-        
-        if(hWidget) { 
-            this.renderHeight = hWidget.value; 
-            const orig = hWidget.callback; 
-            hWidget.callback = v => { updateDim(hWidget, v); if(orig) orig(v); };
+
+        if (hWidget) {
+            this.renderHeight = hWidget.value;
+            const orig = hWidget.callback;
+            hWidget.callback = v => { updateDim(hWidget, v); if (orig) orig(v); };
         }
-        
+
         updateDim();
 
         // Frame count & FPS updates max slider
         const slider = this.container.querySelector("#t-slider");
         const fWidget = this.node.widgets?.find(w => w.name === "frame_count");
-        if(fWidget && slider) {
+        if (fWidget && slider) {
             slider.max = fWidget.value;
             const orig = fWidget.callback;
-            fWidget.callback = v => { slider.max = v; if(orig) orig(v); };
+            fWidget.callback = v => { slider.max = v; if (orig) orig(v); };
         }
     }
 
@@ -918,15 +1131,19 @@ class YedpViewport {
         const h = vpDiv.clientHeight;
         if (w && h) {
             this.renderer.setSize(w, h);
-            this.camera.aspect = w / h;
-            this.camera.updateProjectionMatrix();
-            
+            if (this.camera.isOrthographicCamera) {
+                this.applyOrthoScale();
+            } else {
+                this.camera.aspect = w / h;
+                this.camera.updateProjectionMatrix();
+            }
+
             const aspectContainer = w / h;
             const aspectTarget = this.renderWidth / this.renderHeight;
             let gw, gh;
-            if (aspectContainer > aspectTarget) { gh = h - 20; gw = gh * aspectTarget; } 
+            if (aspectContainer > aspectTarget) { gh = h - 20; gw = gh * aspectTarget; }
             else { gw = w - 20; gh = gw / aspectTarget; }
-            if(this.gate) { this.gate.style.width = `${gw}px`; this.gate.style.height = `${gh}px`; }
+            if (this.gate) { this.gate.style.width = `${gw}px`; this.gate.style.height = `${gh}px`; }
         }
     }
 
@@ -940,10 +1157,10 @@ class YedpViewport {
         const THREE = this.THREE;
         const btn = this.container.querySelector('#btn-bake');
         btn.innerText = "PREPARING...";
-        
+
         this.isBaking = true;
         this.isPlaying = false;
-        
+
         // Hide gizmo
         this.transformControls.detach();
         this.activeCharId = null;
@@ -954,7 +1171,7 @@ class YedpViewport {
         const originalAspect = this.camera.aspect;
         const originalZoom = this.camera.zoom;
         const originalBg = this.scene.background;
-        
+
         const vpArea = this.container.querySelector(".yedp-vp-area");
         if (vpArea) {
             const vpW = vpArea.clientWidth; const vpH = vpArea.clientHeight;
@@ -970,14 +1187,14 @@ class YedpViewport {
         const frames = this.getWidgetValue("frame_count", 48);
         const fps = this.getWidgetValue("fps", 24);
         const step = 1.0 / fps;
-        
+
         const results = { pose: [], depth: [], canny: [], normal: [] };
 
         // Determine current visibility intent
         const visSkel = this.container.querySelector("#chk-skel").checked;
         const toggleHelpers = (vis) => {
-            if(this.gridHelper) this.gridHelper.visible = vis;
-            if(this.axesHelper) this.axesHelper.visible = vis;
+            if (this.gridHelper) this.gridHelper.visible = vis;
+            if (this.axesHelper) this.axesHelper.visible = vis;
         };
         toggleHelpers(false);
 
@@ -988,7 +1205,7 @@ class YedpViewport {
                 c.poseMeshes.forEach(m => m.visible = showPose);
                 c.inactiveDepthMeshes.forEach(m => m.visible = false); // Force inactive meshes to stay hidden
                 c.activeDepthMeshes.forEach(m => m.visible = showDepth);
-                c.skeletonHelper.visible = visSkel && showPose; 
+                c.skeletonHelper.visible = visSkel && showPose;
             });
         };
 
@@ -1018,7 +1235,7 @@ class YedpViewport {
 
         const captureFrame = (array, mimeType = "image/png", quality = undefined) => {
             this.renderer.render(this.scene, this.camera);
-            this.renderer.getContext().finish(); 
+            this.renderer.getContext().finish();
             if (mimeType === "image/jpeg") {
                 compressCtx.fillStyle = "#000000";
                 compressCtx.fillRect(0, 0, this.renderWidth, this.renderHeight);
@@ -1033,27 +1250,27 @@ class YedpViewport {
         for (let i = 0; i < frames; i++) {
             const time = i * step;
             const timeRatio = frames > 1 ? i / (frames - 1) : 0;
-            
+
             // UI Progress Feedback
-            btn.innerText = `BAKING ${i+1}/${frames}`;
-            
+            btn.innerText = `BAKING ${i + 1}/${frames}`;
+
             this.applyCameraKeyframes(timeRatio);
 
             this.characters.forEach(c => {
-                if(c.action && c.duration > 0) { 
+                if (c.action && c.duration > 0) {
                     c.action.time = c.loop ? (time % c.duration) : Math.min(time, c.duration);
-                    c.mixer.update(0); 
+                    c.mixer.update(0);
                 }
                 c.scene.updateMatrixWorld(true);
             });
 
             // PASS 1: OPENPOSE
-            this.scene.background = new THREE.Color(0x000000); 
+            this.scene.background = new THREE.Color(0x000000);
             setVisibility('pose');
-            this.resetCamera(); 
-            const restoreMaterials = swapPoseToUnlit(); 
-            captureFrame(results.pose, "image/png"); 
-            restoreMaterials(); 
+            this.resetCamera();
+            const restoreMaterials = swapPoseToUnlit();
+            captureFrame(results.pose, "image/png");
+            restoreMaterials();
 
             // PASS 2: DEPTH
             this.scene.background = new THREE.Color(0x000000);
@@ -1064,54 +1281,54 @@ class YedpViewport {
 
             const depthRestores = [];
             this.characters.forEach(c => {
-                c.activeDepthMeshes.forEach(m => { depthRestores.push({mesh: m, mat: m.material}); m.material = this.depthMat; });
+                c.activeDepthMeshes.forEach(m => { depthRestores.push({ mesh: m, mat: m.material }); m.material = this.depthMat; });
             });
             captureFrame(results.depth, "image/png");
             depthRestores.forEach(o => o.mesh.material = o.mat);
 
             // PASS 3: CANNY
-            this.scene.background = new THREE.Color(0x000000); 
-            setVisibility('canny'); 
+            this.scene.background = new THREE.Color(0x000000);
+            setVisibility('canny');
             this.resetCamera();
             const cannyRestores = [];
             this.characters.forEach(c => {
-                c.activeDepthMeshes.forEach(m => { cannyRestores.push({mesh: m, mat: m.material}); m.material = this.cannyMat; });
+                c.activeDepthMeshes.forEach(m => { cannyRestores.push({ mesh: m, mat: m.material }); m.material = this.cannyMat; });
             });
             captureFrame(results.canny, "image/png");
             cannyRestores.forEach(o => o.mesh.material = o.mat);
 
             // PASS 4: NORMAL
-            this.scene.background = new THREE.Color(0x000000); 
-            setVisibility('normal'); 
+            this.scene.background = new THREE.Color(0x000000);
+            setVisibility('normal');
             this.resetCamera();
             const normalRestores = [];
             this.characters.forEach(c => {
-                c.activeDepthMeshes.forEach(m => { normalRestores.push({mesh: m, mat: m.material}); m.material = this.normalMat; });
+                c.activeDepthMeshes.forEach(m => { normalRestores.push({ mesh: m, mat: m.material }); m.material = this.normalMat; });
             });
             captureFrame(results.normal, "image/png");
             normalRestores.forEach(o => o.mesh.material = o.mat);
-            
+
             await new Promise(r => setTimeout(r, 10)); // tiny yield
         }
-        
+
         // Restoration
         this.renderer.setSize(originalSize.width, originalSize.height);
         this.camera.aspect = originalAspect;
-        this.camera.zoom = originalZoom; 
-        
-        if(this.isDepthMode) { this.camera.near = this.userNear; this.camera.far = this.userFar; } 
+        this.camera.zoom = originalZoom;
+
+        if (this.isDepthMode) { this.camera.near = this.userNear; this.camera.far = this.userFar; }
         else this.resetCamera();
         this.camera.updateProjectionMatrix();
 
-        toggleHelpers(true); 
+        toggleHelpers(true);
         this.scene.background = originalBg;
         this.isBaking = false;
-        
+
         // Restore standard view
         const chkDepth = this.container.querySelector("#chk-depth").checked;
         this.toggleDepthMode(chkDepth);
         this.characters.forEach(c => { c.skeletonHelper.visible = visSkel; });
-        
+
         // ---- CRITICAL NEW UPLOAD LOGIC TO PREVENT QUOTA CRASHES ----
         btn.innerText = "UPLOADING TO CACHE...";
         const clientDataWidget = this.node.widgets.find(w => w.name === "client_data");
@@ -1123,10 +1340,10 @@ class YedpViewport {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(results)
                 });
-                
+
                 if (!response.ok) throw new Error("Upload failed");
                 const resData = await response.json();
-                
+
                 // Store only the tiny ID string inside the widget (safe for localStorage!)
                 clientDataWidget.value = resData.payload_id;
                 console.log(`[Yedp] Batch Render Complete. Cached payload ID: ${resData.payload_id}`);
@@ -1135,7 +1352,7 @@ class YedpViewport {
                 clientDataWidget.value = JSON.stringify(results);
             }
         }
-        
+
         btn.innerText = "BAKE (DONE)";
         setTimeout(() => { btn.innerText = "BAKE V9.10"; }, 2000);
     }
@@ -1152,21 +1369,21 @@ app.registerExtension({
                 const container = document.createElement("div");
                 container.classList.add("yedp-container");
                 container.style.width = "100%";
-                container.style.height = "100%"; 
-                
+                container.style.height = "100%";
+
                 const widget = this.addDOMWidget("3d_viewport", "vp", container, { serialize: false, hideOnZoom: false });
                 widget.computeSize = (w) => [w, 0];
-                
+
                 setTimeout(() => {
                     const vp = new YedpViewport(this, container);
                     const onResizeOrig = this.onResize;
-                    this.onResize = function(size) {
+                    this.onResize = function (size) {
                         if (onResizeOrig) onResizeOrig.call(this, size);
-                        let usedHeight = 30; 
+                        let usedHeight = 30;
                         if (this.widgets) {
                             for (const w of this.widgets) {
                                 if (w === widget) break;
-                                usedHeight += w.last_h || 26; 
+                                usedHeight += w.last_h || 26;
                             }
                         }
                         const safeHeight = Math.max(10, size[1] - usedHeight - 35);
@@ -1175,9 +1392,9 @@ app.registerExtension({
                         vp.onResize(container.querySelector(".yedp-vp-area"));
                     };
                 }, 100);
-                
+
                 // Made the default UI slightly wider to comfortably fit the viewport + sidebar
-                this.setSize([720, 600]);
+                this.setSize([820, 700]);
             };
         }
     }
