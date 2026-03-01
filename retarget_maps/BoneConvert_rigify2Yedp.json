@@ -1,0 +1,215 @@
+{
+    "rokoko_custom_names": true,
+    "version": 1,
+    "bones": {
+        "custom_bone_torso": [
+            "torso",
+            "Hips"
+        ],
+        "custom_bone_spine_fk": [
+            "spine_fk",
+            "Spine"
+        ],
+        "custom_bone_chest_fk": [
+            "chest_fk",
+            "Spine1"
+        ],
+        "custom_bone_upper_chest_fk": [
+            "upper chest_fk",
+            "Spine2"
+        ],
+        "custom_bone_neck": [
+            "neck",
+            "Neck"
+        ],
+        "custom_bone_head": [
+            "head",
+            "Head"
+        ],
+        "custom_bone_left_shoulder": [
+            "left shoulder",
+            "LeftShoulder"
+        ],
+        "custom_bone_left_arm_fk": [
+            "left arm_fk",
+            "LeftArm"
+        ],
+        "custom_bone_left_elbow_fk": [
+            "left elbow_fk",
+            "LeftForeArm"
+        ],
+        "custom_bone_left_wrist_fk": [
+            "left wrist_fk",
+            "LeftHand"
+        ],
+        "custom_bone_right_shoulder": [
+            "right shoulder",
+            "RightShoulder"
+        ],
+        "custom_bone_right_arm_fk": [
+            "right arm_fk",
+            "RightArm"
+        ],
+        "custom_bone_right_elbow_fk": [
+            "right elbow_fk",
+            "RightForeArm"
+        ],
+        "custom_bone_right_wrist_fk": [
+            "right wrist_fk",
+            "RightHand"
+        ],
+        "custom_bone_left_leg_fk": [
+            "left leg_fk",
+            "LeftUpLeg"
+        ],
+        "custom_bone_left_knee_fk": [
+            "left knee_fk",
+            "LeftLeg"
+        ],
+        "custom_bone_left_ankle_fk": [
+            "left ankle_fk",
+            "LeftFoot"
+        ],
+        "custom_bone_left_toe_fk": [
+            "left toe_fk",
+            "LeftToeBase"
+        ],
+        "custom_bone_right_leg_fk": [
+            "right leg_fk",
+            "RightUpLeg"
+        ],
+        "custom_bone_right_knee_fk": [
+            "right knee_fk",
+            "RightLeg"
+        ],
+        "custom_bone_right_ankle_fk": [
+            "right ankle_fk",
+            "RightFoot"
+        ],
+        "custom_bone_right_toe_fk": [
+            "right toe_fk",
+            "RightToeBase"
+        ],
+        "custom_bone_thumb0_l": [
+            "thumb0_l",
+            "LeftHandThumb1"
+        ],
+        "custom_bone_thumb1_l": [
+            "thumb1_l",
+            "LeftHandThumb2"
+        ],
+        "custom_bone_thumb2_l": [
+            "thumb2_l",
+            "LeftHandThumb3"
+        ],
+        "custom_bone_indexfinger1_l": [
+            "indexfinger1_l",
+            "LeftHandIndex1"
+        ],
+        "custom_bone_indexfinger2_l": [
+            "indexfinger2_l",
+            "LeftHandIndex2"
+        ],
+        "custom_bone_indexfinger3_l": [
+            "indexfinger3_l",
+            "LeftHandIndex3"
+        ],
+        "custom_bone_middlefinger1_l": [
+            "middlefinger1_l",
+            "LeftHandMiddle1"
+        ],
+        "custom_bone_middlefinger2_l": [
+            "middlefinger2_l",
+            "LeftHandMiddle2"
+        ],
+        "custom_bone_middlefinger3_l": [
+            "middlefinger3_l",
+            "LeftHandMiddle3"
+        ],
+        "custom_bone_ringfinger1_l": [
+            "ringfinger1_l",
+            "LeftHandRing1"
+        ],
+        "custom_bone_ringfinger2_l": [
+            "ringfinger2_l",
+            "LeftHandRing2"
+        ],
+        "custom_bone_ringfinger3_l": [
+            "ringfinger3_l",
+            "LeftHandRing3"
+        ],
+        "custom_bone_littlefinger1_l": [
+            "littlefinger1_l",
+            "LeftHandPinky1"
+        ],
+        "custom_bone_littlefinger2_l": [
+            "littlefinger2_l",
+            "LeftHandPinky2"
+        ],
+        "custom_bone_littlefinger3_l": [
+            "littlefinger3_l",
+            "LeftHandPinky3"
+        ],
+        "custom_bone_thumb0_r": [
+            "thumb0_r",
+            "RightHandThumb1"
+        ],
+        "custom_bone_thumb1_r": [
+            "thumb1_r",
+            "RightHandThumb2"
+        ],
+        "custom_bone_thumb2_r": [
+            "thumb2_r",
+            "RightHandThumb3"
+        ],
+        "custom_bone_indexfinger1_r": [
+            "indexfinger1_r",
+            "RightHandIndex1"
+        ],
+        "custom_bone_indexfinger2_r": [
+            "indexfinger2_r",
+            "RightHandIndex2"
+        ],
+        "custom_bone_indexfinger3_r": [
+            "indexfinger3_r",
+            "RightHandIndex3"
+        ],
+        "custom_bone_middlefinger1_r": [
+            "middlefinger1_r",
+            "RightHandMiddle1"
+        ],
+        "custom_bone_middlefinger2_r": [
+            "middlefinger2_r",
+            "RightHandMiddle2"
+        ],
+        "custom_bone_middlefinger3_r": [
+            "middlefinger3_r",
+            "RightHandMiddle3"
+        ],
+        "custom_bone_ringfinger1_r": [
+            "ringfinger1_r",
+            "RightHandRing1"
+        ],
+        "custom_bone_ringfinger2_r": [
+            "ringfinger2_r",
+            "RightHandRing2"
+        ],
+        "custom_bone_ringfinger3_r": [
+            "ringfinger3_r",
+            "RightHandRing3"
+        ],
+        "custom_bone_littlefinger1_r": [
+            "littlefinger1_r",
+            "RightHandPinky1"
+        ],
+        "custom_bone_littlefinger2_r": [
+            "littlefinger2_r",
+            "RightHandPinky2"
+        ],
+        "custom_bone_littlefinger3_r": [
+            "littlefinger3_r",
+            "RightHandPinky3"
+        ]
+    },
+    "shapes": {}
+}

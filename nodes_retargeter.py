@@ -75,10 +75,27 @@ class YedpRokokoRetargeter:
             raise FileNotFoundError(f"Animation file not found: {anim_path}")
 
         # --- 2. Load retarget map ---
+        # Strip surrounding quotes and whitespace
+        retarget_json_path = retarget_json_path.strip().strip('"').strip("'")
+
+        # If it's just a filename (no path separators), look in bundled retarget_maps/
+        if retarget_json_path and os.sep not in retarget_json_path and '/' not in retarget_json_path and '\\' not in retarget_json_path:
+            bundled_dir = os.path.join(os.path.dirname(__file__), "retarget_maps")
+            candidate = os.path.join(bundled_dir, retarget_json_path)
+            if os.path.isfile(candidate):
+                retarget_json_path = candidate
+                print(f"[Yedp] Using bundled retarget map: {candidate}")
+
         if not retarget_json_path or not os.path.isfile(retarget_json_path):
+            # List available bundled maps for the error message
+            bundled_dir = os.path.join(os.path.dirname(__file__), "retarget_maps")
+            available = []
+            if os.path.isdir(bundled_dir):
+                available = [f for f in os.listdir(bundled_dir) if f.endswith(".json")]
             raise FileNotFoundError(
                 f"Retarget JSON not found: {retarget_json_path}\n"
-                "Provide a valid path to the bone mapping JSON."
+                f"Available bundled maps: {available}\n"
+                "Enter just the filename (e.g. 'BoneConvert_rigify2Yedp.json') or a full Linux path."
             )
 
         with open(retarget_json_path, "r", encoding="utf-8") as f:
