@@ -1516,16 +1516,28 @@ app.registerExtension({
                         }
                         const safeHeight = Math.max(10, size[1] - usedHeight - 45);
                         container.style.height = safeHeight + "px";
+                        container.style.width = Math.max(10, size[0] - 20) + "px"; // EXPLICIT WIDTH
                         container.style.maxHeight = "none";
                         vp.onResize(container.querySelector(".yedp-vp-area"));
                     };
 
                     // Force an immediate resize calculation on initialization
-                    // so the 3D viewport appears instantly upon workflow load 
-                    // without waiting for the user to drag/resize the node window.
                     if (this.size) {
                         this.onResize(this.size);
                     }
+
+                    // V9.10 FIX: Self-healing layout loop for off-screen loads
+                    // ComfyUI will cull off-screen nodes causing their DOM to have 0x0 dimensions.
+                    // When scrolled into view, the DOM recovers its size automatically, but Three.js
+                    // renderer needs to be explicitly synchronized.
+                    const observer = new ResizeObserver(() => {
+                        const vpArea = container.querySelector(".yedp-vp-area");
+                        if (vpArea && vpArea.clientWidth > 0 && vpArea.clientHeight > 0) {
+                            vp.onResize(vpArea);
+                        }
+                    });
+                    observer.observe(container);
+
                 }, 100);
 
                 // Made the default UI slightly wider to comfortably fit the viewport + sidebar
