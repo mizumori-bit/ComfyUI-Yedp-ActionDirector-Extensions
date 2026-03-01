@@ -81,24 +81,6 @@ class YedpActionDirector:
                 "height": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 8}),
                 "frame_count": ("INT", {"default": 48, "min": 1, "max": 3000}),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 60}),
-                # --- FEAT-01: Camera numeric control ---
-                "projection": (["perspective", "orthographic"], {"default": "perspective"}),
-                "focal_length": ("FLOAT", {"default": 50.0, "min": 10.0, "max": 200.0, "step": 1.0}),
-                "ortho_scale": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 20.0, "step": 0.1}),
-                "cam_pos_x": ("FLOAT", {"default": 0.0, "min": -100.0, "max": 100.0, "step": 0.1}),
-                "cam_pos_y": ("FLOAT", {"default": 1.5, "min": -100.0, "max": 100.0, "step": 0.1}),
-                "cam_pos_z": ("FLOAT", {"default": 3.0, "min": -100.0, "max": 100.0, "step": 0.1}),
-                "cam_target_x": ("FLOAT", {"default": 0.0, "min": -100.0, "max": 100.0, "step": 0.1}),
-                "cam_target_y": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.1}),
-                "cam_target_z": ("FLOAT", {"default": 0.0, "min": -100.0, "max": 100.0, "step": 0.1}),
-                # --- FEAT-03: Lighting control ---
-                "dir_light_x": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.1}),
-                "dir_light_y": ("FLOAT", {"default": 2.0, "min": -10.0, "max": 10.0, "step": 0.1}),
-                "dir_light_z": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.1}),
-                "dir_light_intensity": ("FLOAT", {"default": 1.2, "min": 0.0, "max": 5.0, "step": 0.1}),
-                "amb_light_intensity": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 3.0, "step": 0.1}),
-                "hemi_intensity": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 3.0, "step": 0.1}),
-                # --- Internal ---
                 "client_data": ("STRING", {"default": "", "multiline": False}),
             },
             "hidden": {
@@ -146,11 +128,6 @@ class YedpActionDirector:
         return torch.stack(tensor_list)
 
     def render(self, width, height, frame_count, fps,
-               projection="perspective", focal_length=50.0, ortho_scale=2.0,
-               cam_pos_x=0.0, cam_pos_y=1.5, cam_pos_z=3.0,
-               cam_target_x=0.0, cam_target_y=1.0, cam_target_z=0.0,
-               dir_light_x=1.0, dir_light_y=2.0, dir_light_z=1.0,
-               dir_light_intensity=1.2, amb_light_intensity=0.4, hemi_intensity=0.3,
                client_data=None, unique_id=None):
         # 1. Check if Data Exists
         if not client_data or len(client_data) < 10:
