@@ -12,6 +12,8 @@ import hashlib
 import uuid
 from pathlib import Path
 
+EXTENSION_DIR = os.path.dirname(os.path.realpath(__file__))
+
 # --- CONFIGURATION ---
 if "yedp_anims" not in folder_paths.folder_names_and_paths:
     folder_paths.folder_names_and_paths["yedp_anims"] = ([os.path.join(folder_paths.get_input_directory(), "yedp_anims")], {".glb", ".fbx", ".bvh"})
