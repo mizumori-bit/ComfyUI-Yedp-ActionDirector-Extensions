@@ -1500,7 +1500,9 @@ app.registerExtension({
                 container.style.borderRadius = "0 0 6px 6px";
 
                 const widget = this.addDOMWidget("3d_viewport", "vp", container, { serialize: false, hideOnZoom: false });
-                widget.computeSize = (w) => [w, 0];
+                // Return a minimum height so ComfyUI's layout engine allocates space
+                // immediately on load instead of collapsing the node to 0 height.
+                widget.computeSize = (w) => [w, 500];
 
                 setTimeout(() => {
                     const vp = new YedpViewport(this, container);
