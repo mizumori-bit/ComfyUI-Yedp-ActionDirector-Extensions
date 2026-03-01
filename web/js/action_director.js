@@ -716,18 +716,28 @@ class YedpViewport {
 
     applyOrthoScale() {
         if (!this.orthoCamera) return;
-        const aspect = this.renderWidth / this.renderHeight;
 
-        let halfW, halfH;
-        if (aspect > 1) {
-            // Wide format: keep vertical scale fixed, expand horizontal bounds
-            halfH = this.orthoScale;
-            halfW = this.orthoScale * aspect;
-        } else {
-            // Tall format: keep horizontal scale fixed, expand vertical bounds
-            halfW = this.orthoScale;
-            halfH = this.orthoScale / aspect;
+        let canvasW = this.renderWidth;
+        let canvasH = this.renderHeight;
+
+        // During live preview, the camera frustum must match the physical DOM canvas
+        // aspect ratio to avoid squishing/stretching the 3D scene geometry.
+        if (!this.isBaking && this.renderer) {
+            const size = new this.THREE.Vector2();
+            this.renderer.getSize(size);
+            if (size.width > 0 && size.height > 0) {
+                canvasW = size.width;
+                canvasH = size.height;
+            }
         }
+
+        const aspect = canvasW / canvasH;
+
+        // Match PerspectiveCamera behavior: Vertical size is constant,
+        // horizontal size adapts to aspect ratio. This ensures the output 
+        // matches the UI 'Gate' precisely.
+        const halfH = this.orthoScale;
+        const halfW = this.orthoScale * aspect;
 
         this.orthoCamera.left = -halfW;
         this.orthoCamera.right = halfW;
@@ -1299,7 +1309,7 @@ class YedpViewport {
         const originalBg = this.scene.background;
 
         const vpArea = this.container.querySelector(".yedp-vp-area");
-        if (vpArea && !isOrtho) {
+        if (vpArea) {
             const vpW = vpArea.clientWidth; const vpH = vpArea.clientHeight;
             const vpAspect = vpW / vpH; const targetAspect = this.renderWidth / this.renderHeight;
             if (vpAspect < targetAspect) this.camera.zoom = originalZoom * (targetAspect / vpAspect);
