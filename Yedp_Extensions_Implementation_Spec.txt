@@ -1,0 +1,428 @@
+ComfyUI-Yedp-ActionDirector-Extensions
+実装指示書
+Version 1.0  ／  対象ベース: yedp123/ComfyUI-Yedp-Action-Director
+
+0. プロジェクト概要
+本指示書は、ComfyUI カスタムノード「Yedp Action Director」に対して以下の機能拡張を実装するための仕様を定める。実装者は本指示書に従い、既存リポジトリ（yedp123/ComfyUI-Yedp-Action-Director）をフォークして新規リポジトリを作成し、機能追加を行うこと。
+
+0.1 追加機能一覧
+機能ID
+機能名
+実装区分
+FEAT-01
+カメラ数値制御・焦点距離・正射影切り替え
+JavaScript (Three.js) + Python
+FEAT-02
+カメラプリセット ローカル保存・読み込み
+Python + JavaScript
+FEAT-03
+Three.js 標準ライティング制御
+JavaScript (Three.js) + Python
+FEAT-04
+Rokoko リターゲットJSON 中継カスタムノード
+Python（新規ノード）
+
+0.2 前提・依存関係
+ベースリポジトリ: https://github.com/yedp123/ComfyUI-Yedp-Action-Director
+ComfyUI 標準カスタムノード仕様に準拠すること
+Python 依存追加: trimesh（GLBボーン解析用）、scipy（クォータニオン演算用）
+JavaScript: 既存の Three.js バンドルをそのまま使用すること（バージョン変更禁止）
+確認事項: Yedp_Rig.glb のボーン名一覧を実装前に trimesh で出力し、FEAT-04 のターゲットボーン名マッピングに使用すること。
+
+FEAT-01：カメラ数値制御・焦点距離・正射影切り替え
+概要
+既存のカメラシーケンシング機能（キーフレームUI）を維持しつつ、カメラパラメータを数値で直接入力できるUIを追加する。また透視投影（Perspective）と正射影（Orthographic）の切り替えを実装する。
+Python側 実装仕様（nodes.py）
+ノード入力に追加するパラメータ
+パラメータ名
+型
+デフォルト値
+説明
+cam_pos_x
+FLOAT
+0.0
+カメラX座標
+cam_pos_y
+FLOAT
+1.5
+カメラY座標
+cam_pos_z
+FLOAT
+3.0
+カメラZ座標
+cam_rot_x
+FLOAT
+0.0
+カメラX回転（度）
+cam_rot_y
+FLOAT
+0.0
+カメラY回転（度）
+cam_rot_z
+FLOAT
+0.0
+カメラZ回転（度）
+focal_length
+FLOAT
+50.0
+焦点距離mm（Perspective時のみ有効）
+projection
+STRING (LIST)
+perspective
+perspective / orthographic
+ortho_scale
+FLOAT
+2.0
+正射影スケール（Orthographic時のみ有効）
+
+上記パラメータをJSON化してJavaScript側に渡す処理を、既存のフレームデータ送信処理に統合すること。
+camera_params = {
+    'position': {'x': cam_pos_x, 'y': cam_pos_y, 'z': cam_pos_z},
+    'rotation': {'x': cam_rot_x, 'y': cam_rot_y, 'z': cam_rot_z},
+    'focal_length': focal_length,
+    'projection': projection,
+    'ortho_scale': ortho_scale,
+}
+JavaScript側 実装仕様
+Perspective / Orthographic 切り替え
+シーン初期化時に使用するカメラクラスを projection パラメータで分岐させること。
+// projection === 'orthographic' の場合
+camera = new THREE.OrthographicCamera(
+    -ortho_scale, ortho_scale,
+    ortho_scale / aspect, -ortho_scale / aspect,
+    0.01, 1000
+);
+// projection === 'perspective' の場合（既存処理）
+const fov = 2 * Math.atan(24 / (2 * focal_length)) * (180 / Math.PI);
+camera = new THREE.PerspectiveCamera(fov, aspect, 0.01, 1000);
+
+注意: 既存の OrbitControls はカメラ種別を問わず動作するが、切り替え時には controls.object を新しいカメラに再バインドすること。
+数値入力UIの同期
+既存のキーフレームUIとスライダーUIの数値は常に双方向同期すること。数値入力フィールドを変更した場合にビューポートが即時更新されること。
+
+FEAT-02：カメラプリセット ローカル保存・読み込み
+概要
+FEAT-01で定義したカメラパラメータ一式をJSON形式でローカルに保存・読み込みできる機能を実装する。
+ファイル保存仕様
+保存ディレクトリ
+ComfyUI/input/yedp_camera_presets/
+ファイル形式
+JSON（UTF-8）
+ファイル命名規則
+{preset_name}.json
+JSONスキーマ
+{
+  "preset_name": "front_view",
+  "created_at": "2026-03-01T00:00:00",
+  "camera": {
+    "position": {"x": 0.0, "y": 1.5, "z": 3.0},
+    "rotation": {"x": 0.0, "y": 0.0, "z": 0.0},
+    "focal_length": 50.0,
+    "projection": "perspective",
+    "ortho_scale": 2.0
+  }
+}
+Python側 API エンドポイント（ComfyUI ルート追加）
+以下の3エンドポイントを nodes.py または専用ルートファイルに追加すること。
+エンドポイント
+メソッド
+処理内容
+/yedp/camera_presets/list
+GET
+保存済みプリセット名の一覧を返す
+/yedp/camera_presets/save
+POST
+JSON bodyを受け取りファイルに保存
+/yedp/camera_presets/load/{name}
+GET
+指定プリセットのJSONを返す
+JavaScript側 UI
+ビューポートヘッダーに「Save Preset」ボタンと「Load Preset」ドロップダウンを追加
+Load選択時は即時カメラパラメータに反映し、ビューポートを更新する
+プリセット一覧はページ読み込み時とSave後に自動リフレッシュすること
+
+FEAT-03：Three.js 標準ライティング制御
+概要
+既存シーンのライティングをノードパラメータから制御できるようにする。使用するライトは Three.js 標準ライトのみとし、カスタムシェーダーは実装しない。
+実装するライト種別
+ライト種別
+役割
+制御パラメータ
+DirectionalLight
+主光源。Normalマップのコントラストを決定する最重要ライト
+方向XYZ・色・強度
+AmbientLight
+環境光。全体の底上げ。強すぎるとNormalが潰れるため低め推奨
+色・強度
+HemisphereLight
+天空光。自然な環境感。省略可能だが品質向上に寄与する
+空色・地面色・強度
+Python側 ノード入力パラメータ
+パラメータ名
+型
+デフォルト値
+説明
+dir_light_x
+FLOAT
+1.0
+DirectionalLight 方向X
+dir_light_y
+FLOAT
+2.0
+DirectionalLight 方向Y
+dir_light_z
+FLOAT
+1.0
+DirectionalLight 方向Z
+dir_light_color
+STRING
+#ffffff
+DirectionalLight 色（16進数）
+dir_light_intensity
+FLOAT
+1.2
+DirectionalLight 強度
+amb_light_color
+STRING
+#404040
+AmbientLight 色
+amb_light_intensity
+FLOAT
+0.4
+AmbientLight 強度
+hemi_sky_color
+STRING
+#87CEEB
+HemisphereLight 空色
+hemi_ground_color
+STRING
+#8B4513
+HemisphereLight 地面色
+hemi_intensity
+FLOAT
+0.3
+HemisphereLight 強度
+JavaScript側 実装
+// シーン初期化時
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(1.0, 2.0, 1.0);
+scene.add(dirLight);
+
+const ambLight = new THREE.AmbientLight(0x404040, 0.4);
+scene.add(ambLight);
+
+const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.3);
+scene.add(hemiLight);
+
+// パラメータ更新時
+function updateLighting(params) {
+    dirLight.position.set(params.dir_x, params.dir_y, params.dir_z);
+    dirLight.color.set(params.dir_color);
+    dirLight.intensity = params.dir_intensity;
+    ambLight.color.set(params.amb_color);
+    ambLight.intensity = params.amb_intensity;
+    hemiLight.color.set(params.hemi_sky);
+    hemiLight.groundColor.set(params.hemi_ground);
+    hemiLight.intensity = params.hemi_intensity;
+}
+
+推奨デフォルト値: Normalマップ生成に適したデフォルト値は dir_intensity=1.2、amb_intensity=0.4 程度。AmbientLight が強すぎると法線の陰影情報が失われるため注意。
+
+FEAT-04：Rokoko リターゲット JSON 中継カスタムノード
+概要
+Rokoko Studio でエクスポートしたリターゲットマップ JSON を読み込み、ユーザーの自前アニメーションモデル（FBX/GLB）のボーン名を Yedp_Rig.glb のボーン名に変換した上で Yedp Action Director に渡す新規カスタムノードを実装する。
+このノードは Yedp Action Director の既存アニメーション読み込みパイプラインへの「前段アダプター」として機能する。
+実装前の必須確認作業
+実装開始前に以下を必ず実行し、Yedp_Rig.glb の実際のボーン名一覧を取得すること。このリストが FEAT-04 の中核データとなる。
+import trimesh
+scene = trimesh.load('path/to/Yedp_Rig.glb')
+for name, mesh in scene.geometry.items():
+    print(name)
+# または
+import pygltflib
+glb = pygltflib.GLTF2().load('Yedp_Rig.glb')
+for node in glb.nodes:
+    print(node.name)
+Rokoko リターゲット JSON フォーマット
+Rokoko Studio からエクスポートされるリターゲットマップのフォーマットは以下を想定する。実際のフォーマットが異なる場合は以下に準じて柔軟にパースすること。
+{
+  "retarget": [
+    { "source": "mixamorig:Hips",    "target": "Hips" },
+    { "source": "mixamorig:Spine",   "target": "Spine" },
+    { "source": "mixamorig:LeftArm", "target": "LeftArm" },
+    ...
+  ]
+}
+
+フォーマット確認: 実際に Rokoko Studio からエクスポートしたサンプル JSON を取得し、フォーマットが上記と異なる場合は parser を調整すること。target 側の値が Yedp_Rig.glb のボーン名と一致しているかを確認する。
+ノード定義仕様
+クラス名
+YedpRokokoRetargeter
+ノード表示名
+Yedp Rokoko Retargeter
+カテゴリ
+Yedp/Animation
+INPUT_TYPES
+パラメータ名
+型
+説明
+animation_path
+STRING
+自前アニメーションFBX/GLBファイルのパス（ComfyUI/input/yedp_anims/ 以下）
+retarget_json_path
+STRING
+Rokoko リターゲットマップJSON のファイルパス
+frame_start
+INT（default:0）
+抽出開始フレーム番号
+frame_end
+INT（default:30）
+抽出終了フレーム番号
+frame_step
+INT（default:1）
+フレームステップ（1=全フレーム、2=1フレームおき）
+RETURN_TYPES
+RETURN_TYPES = ('STRING',)   # リターゲット済みアニメーションパス（Yedp が読めるGLB）
+RETURN_NAMES = ('retargeted_animation_path',)
+FUNCTION = 'retarget'
+処理フロー
+1. retarget_json_path を読み込み、source→target の辞書を構築する
+2. animation_path のFBX/GLBを trimesh または pygltflib で読み込み、ボーン名一覧を取得する
+3. source ボーン名を target（Yedpボーン名）に変換した新規GLBを一時ファイルに書き出す
+4. 書き出したGLBのパスを STRING として返す
+5. Yedp Action Director ノードの animation_path 入力に接続することで、通常通り動作する
+実装コード骨格
+import json, os, trimesh
+from pathlib import Path
+
+class YedpRokokoRetargeter:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {'required': {
+            'animation_path':    ('STRING', {'default': ''}),
+            'retarget_json_path':('STRING', {'default': ''}),
+            'frame_start':       ('INT',    {'default': 0, 'min': 0}),
+            'frame_end':         ('INT',    {'default': 30, 'min': 1}),
+            'frame_step':        ('INT',    {'default': 1, 'min': 1}),
+        }}
+    RETURN_TYPES = ('STRING',)
+    RETURN_NAMES = ('retargeted_animation_path',)
+    FUNCTION = 'retarget'
+    CATEGORY = 'Yedp/Animation'
+
+    def retarget(self, animation_path, retarget_json_path,
+                 frame_start, frame_end, frame_step):
+        # 1. リターゲットマップ読み込み
+        with open(retarget_json_path, 'r', encoding='utf-8') as f:
+            retarget_data = json.load(f)
+        bone_map = {r['source']: r['target']
+                    for r in retarget_data.get('retarget', [])}
+
+        # 2. アニメーション読み込み・ボーン名変換
+        scene = trimesh.load(animation_path)
+        renamed = rename_bones(scene, bone_map)  # 実装必要
+
+        # 3. 一時GLBとして書き出し
+        out_dir = os.path.join('ComfyUI', 'input', 'yedp_anims', 'retargeted')
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, f'retargeted_{Path(animation_path).stem}.glb')
+        renamed.export(out_path)
+        return (out_path,)
+エラーハンドリング要件
+retarget_json_path が存在しない場合: FileNotFoundError を ComfyUI エラーとして表示
+animation_path のボーン名がリターゲットマップに存在しない場合: 警告ログを出力し、元のボーン名のまま処理を継続（中断しない）
+出力GLBの書き出しに失敗した場合: 詳細エラーメッセージを表示
+
+実装対象ファイル一覧
+ファイルパス
+変更種別
+対象機能
+nodes.py
+編集
+FEAT-01, 02, 03, 04 のPython入力定義・API
+web/js/yedp_director.js（または同等）
+編集
+FEAT-01, 02, 03 のThree.js実装
+nodes_retargeter.py（新規）
+新規作成
+FEAT-04 YedpRokokoRetargeter クラス
+__init__.py
+編集
+FEAT-04 ノードの NODE_CLASS_MAPPINGS への登録
+requirements.txt
+編集
+trimesh, scipy, pygltflib を追加
+
+__init__.py への登録
+FEAT-04 の新規ノードを以下の通り登録すること。
+from .nodes_retargeter import YedpRokokoRetargeter
+
+NODE_CLASS_MAPPINGS = {
+    # ... 既存エントリ ...
+    'YedpRokokoRetargeter': YedpRokokoRetargeter,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    # ... 既存エントリ ...
+    'YedpRokokoRetargeter': 'Yedp Rokoko Retargeter',
+}
+
+動作確認要件
+FEAT-01
+perspective / orthographic を切り替えたとき、ビューポートの投影が正しく変化すること
+焦点距離を変更したとき、FOVが正しく再計算されること（fov = 2 * atan(24 / (2 * focal_length)) * (180/π)）
+数値入力とキーフレームUIの値が常に同期されること
+FEAT-02
+Save Preset 後に yedp_camera_presets/ にJSONが生成されること
+Load Preset でカメラパラメータが正しく復元されること
+ComfyUI 再起動後もプリセットが維持されること
+FEAT-03
+DirectionalLight の方向を変更したとき、Normalマップの陰影が変化すること
+AmbientLight の強度を 0 にしたとき、光の当たらない面が完全に暗くなること
+FEAT-04
+サンプルFBXと Rokoko リターゲット JSON を使用して retargeted_*.glb が生成されること
+生成されたGLBを Yedp Action Director の animation_path に接続し、正常にアニメーションが再生されること
+ボーン名マッピングに存在しないボーンは警告ログが出力され、処理が継続されること
+
+作業完了時のリポジトリ作業
+以下の手順は実装・動作確認がすべて完了した後に実施すること。
+
+手順
+6. GitHub に新規パブリックリポジトリを作成する
+7. リポジトリ名は「ComfyUI-Yedp-ActionDirector-Extensions」を推奨する（変更可）
+8. Descriptionに「Camera control, lighting, and Rokoko retargeting extensions for Yedp Action Director」を設定する
+9. 実装済みコードを main ブランチに push する
+10. README.md に以下を記載する
+
+ベースリポジトリ（yedp123/ComfyUI-Yedp-Action-Director）へのリンクとクレジット
+追加機能（FEAT-01～04）の説明
+インストール方法
+各機能の使い方（スクリーンショット推奨）
+Rokoko リターゲットJSONの用意方法
+
+11. push 完了後、リポジトリの URL を確認し報告すること
+12. 報告フォーマット:
+
+リポジトリURL: https://github.com/{あなたのユーザー名}/ComfyUI-Yedp-ActionDirector-Extensions
+
+ライセンス: ベースリポジトリのライセンスを確認し、適切なライセンス（MIT推奨）を設定すること。
+
+付録：用語定義
+用語
+説明
+Yedp Action Director
+ベースとなるComfyUIカスタムノード。FBX/GLBアニメーションをMultiPassバッチ出力する
+Rokoko リターゲットJSON
+Rokoko StudioがエクスポートするボーンマッピングJSON。source→targetのペアリストを含む
+リターゲット
+あるリグのアニメーションを別のリグに転写する処理。ボーン名の対応関係が必要
+Yedp_Rig.glb
+Yedpが内蔵するキャラクターリグファイル。このファイルのボーン名がターゲット側の基準となる
+正射影 (Orthographic)
+遠近感のない平行投影。2Dゲームスプライト生成に適している
+透視投影 (Perspective)
+焦点距離ベースの通常カメラ。現実のカメラに近い
+DirectionalLight
+Three.jsの平行光源。太陽光に相当し、Normalマップのコントラスト決定に最も重要
+trimesh
+Pythonの3Dメッシュ処理ライブラリ。GLB/FBXのボーン情報の読み取りに使用
