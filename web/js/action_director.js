@@ -839,7 +839,25 @@ class YedpViewport {
             Object.assign(selAnim.style, { width: "100%", background: "#111", color: "#fff", border: "1px solid #444", borderRadius: "3px", fontSize: "10px", padding: "2px", marginBottom: "4px" });
             this.availableAnimations.forEach(anim => selAnim.add(new Option(anim, anim)));
             selAnim.value = c.animFile;
-            selAnim.onchange = (e) => this.loadAnimationForChar(c, e.target.value);
+            selAnim.onchange = (e) => {
+                c.activeClipIndex = 0; // Reset clip on file change
+                this.loadAnimationForChar(c, e.target.value);
+            };
+
+            const animControls = document.createElement("div");
+            animControls.appendChild(selAnim);
+
+            if (c.loadedAnimations && c.loadedAnimations.length > 1) {
+                const selClip = document.createElement("select");
+                Object.assign(selClip.style, { width: "100%", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: "3px", fontSize: "9px", padding: "1px", marginBottom: "4px" });
+                c.loadedAnimations.forEach((clip, i) => selClip.add(new Option(`[${i}] ${clip.name || 'Unnamed'}`, i)));
+                selClip.value = c.activeClipIndex || 0;
+                selClip.onchange = (e) => {
+                    c.activeClipIndex = parseInt(e.target.value);
+                    this.loadAnimationForChar(c, c.animFile);
+                };
+                animControls.appendChild(selClip);
+            }
 
             const foot = document.createElement("div"); foot.style.display = "flex"; foot.style.justifyContent = "space-between"; foot.style.alignItems = "center";
 
@@ -906,7 +924,7 @@ class YedpViewport {
             card.appendChild(numRow("Pos", [cpx, cpy, cpz]));
             card.appendChild(numRow("RotY", [cry]));
 
-            card.append(head, meshInfo, selAnim, foot);
+            card.append(head, meshInfo, animControls, foot);
             this.uiCharList.appendChild(card);
         });
         this.refreshSidebarHighlights();
@@ -1004,7 +1022,16 @@ class YedpViewport {
             else if (isBVH) model = await new this.BVHLoader().loadAsync(url);
             else model = await new this.GLTFLoaderClass().loadAsync(url);
 
-            let clip = isBVH ? model.clip : (model.animations?.[0] || model.scene?.animations?.[0] || model.asset?.animations?.[0]);
+            let animations = isBVH ? (model.clip ? [model.clip] : []) : (model.animations || model.scene?.animations || model.asset?.animations || []);
+
+            charObj.loadedAnimations = animations;
+            charObj.activeClipIndex = charObj.activeClipIndex || 0;
+            if (charObj.activeClipIndex >= animations.length) charObj.activeClipIndex = 0;
+
+            let clip = animations[charObj.activeClipIndex];
+
+            // Trigger UI refresh to render the clip selector if there are multiple animations
+            setTimeout(() => this.renderCharacterCards(), 0);
 
             if (clip) {
                 const tracks = [];
