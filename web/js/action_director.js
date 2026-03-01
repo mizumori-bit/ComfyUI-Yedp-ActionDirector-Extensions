@@ -1495,6 +1495,9 @@ app.registerExtension({
                 container.classList.add("yedp-container");
                 container.style.width = "100%";
                 container.style.height = "100%";
+                // Prevent viewport bleeding out of the node's rounded corners
+                container.style.overflow = "hidden";
+                container.style.borderRadius = "0 0 6px 6px";
 
                 const widget = this.addDOMWidget("3d_viewport", "vp", container, { serialize: false, hideOnZoom: false });
                 widget.computeSize = (w) => [w, 0];
@@ -1511,7 +1514,7 @@ app.registerExtension({
                                 usedHeight += w.last_h || 26;
                             }
                         }
-                        const safeHeight = Math.max(10, size[1] - usedHeight - 35);
+                        const safeHeight = Math.max(10, size[1] - usedHeight - 45);
                         container.style.height = safeHeight + "px";
                         container.style.maxHeight = "none";
                         vp.onResize(container.querySelector(".yedp-vp-area"));
