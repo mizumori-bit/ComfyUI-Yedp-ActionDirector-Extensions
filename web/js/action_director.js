@@ -1516,6 +1516,13 @@ app.registerExtension({
                         container.style.maxHeight = "none";
                         vp.onResize(container.querySelector(".yedp-vp-area"));
                     };
+
+                    // Force an immediate resize calculation on initialization
+                    // so the 3D viewport appears instantly upon workflow load 
+                    // without waiting for the user to drag/resize the node window.
+                    if (this.size) {
+                        this.onResize(this.size);
+                    }
                 }, 100);
 
                 // Made the default UI slightly wider to comfortably fit the viewport + sidebar
