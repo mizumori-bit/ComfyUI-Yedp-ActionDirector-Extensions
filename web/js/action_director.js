@@ -717,10 +717,22 @@ class YedpViewport {
     applyOrthoScale() {
         if (!this.orthoCamera) return;
         const aspect = this.renderWidth / this.renderHeight;
-        this.orthoCamera.left = -this.orthoScale * aspect;
-        this.orthoCamera.right = this.orthoScale * aspect;
-        this.orthoCamera.top = this.orthoScale;
-        this.orthoCamera.bottom = -this.orthoScale;
+
+        let halfW, halfH;
+        if (aspect > 1) {
+            // Wide format: keep vertical scale fixed, expand horizontal bounds
+            halfH = this.orthoScale;
+            halfW = this.orthoScale * aspect;
+        } else {
+            // Tall format: keep horizontal scale fixed, expand vertical bounds
+            halfW = this.orthoScale;
+            halfH = this.orthoScale / aspect;
+        }
+
+        this.orthoCamera.left = -halfW;
+        this.orthoCamera.right = halfW;
+        this.orthoCamera.top = halfH;
+        this.orthoCamera.bottom = -halfH;
         this.orthoCamera.updateProjectionMatrix();
     }
 
