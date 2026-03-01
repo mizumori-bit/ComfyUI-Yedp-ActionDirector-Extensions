@@ -25,8 +25,8 @@ Camera control, lighting, and Rokoko retargeting extensions for [Yedp Action Dir
 ### FEAT-04: Native Bone Retargeting (JSON Maps) 🦴
 - Select a retarget map directly from the Action Director UI dropdown.
 - Maps are automatically loaded from `ComfyUI-Yedp-ActionDirector-Extensions/retarget_maps/`.
-- Replaces the need for external node pipelines or manual BVH/GLB editing.
-- Included `BoneConvert_rigify2Yedp.json` by default.
+- ⚠️ **Important Limitation:** This retargeting feature performs **simple string replacement of bone names** (e.g., renaming `chest_fk` to `Spine1`). It does **not** perform IK recalculations, roll angle correction, or rest pose (T-Pose vs A-Pose) alignment.
+- 💡 **Best Practice:** For pristine animation results, we strongly recommend using FBX/GLB files exported with a **Mixamo-based bone structure and standard T-Pose**. The built-in semantic normalizer will automatically map Mixamo bones correctly without needing a JSON file. If using non-Mixamo rigs (like Rigify), you will likely experience mangled skeletons due to differing axis orientations and rest poses.
 
 ## Installation
 
