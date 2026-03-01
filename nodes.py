@@ -90,8 +90,8 @@ class YedpActionDirector:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "IMAGE")
-    RETURN_NAMES = ("POSE_BATCH", "DEPTH_BATCH", "CANNY_BATCH", "NORMAL_BATCH")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "IMAGE", "IMAGE")
+    RETURN_NAMES = ("pose", "depth", "canny", "normal", "shaded")
     FUNCTION = "render"
     CATEGORY = "Yedp/MoCap"
 
@@ -136,7 +136,7 @@ class YedpActionDirector:
             print("[Yedp] ERROR: No image data received from frontend.")
             red_frame = torch.zeros((1, height, width, 3))
             red_frame[:,:,:,0] = 1.0
-            return (red_frame, red_frame, red_frame, red_frame)
+            return (red_frame, red_frame, red_frame, red_frame, red_frame)
 
         # 2. Check if it's a Memory Cache ID instead of raw JSON
         global YEDP_PAYLOAD_CACHE
@@ -147,7 +147,7 @@ class YedpActionDirector:
                 print(f"[Yedp] ERROR: Payload ID {client_data} not found in memory cache! Please click BAKE in the node again.")
                 red_frame = torch.zeros((1, height, width, 3))
                 red_frame[:,:,:,0] = 1.0
-                return (red_frame, red_frame, red_frame, red_frame)
+                return (red_frame, red_frame, red_frame, red_frame, red_frame)
 
         # 3. Parse JSON
         try:
@@ -161,9 +161,10 @@ class YedpActionDirector:
         depth_batch = self.decode_batch(data.get("depth", []), width, height, "depth")
         canny_batch = self.decode_batch(data.get("canny", []), width, height, "canny")
         normal_batch = self.decode_batch(data.get("normal", []), width, height, "normal")
+        shaded_batch = self.decode_batch(data.get("shaded", []), width, height, "shaded")
 
-        print(f"[Yedp] Successfully rendered {len(pose_batch)} frames (4 batches).")
-        return (pose_batch, depth_batch, canny_batch, normal_batch)
+        print(f"[Yedp] Successfully rendered {len(pose_batch)} frames (5 batches).")
+        return (pose_batch, depth_batch, canny_batch, normal_batch, shaded_batch)
 
 
 # --- API ROUTES ---

@@ -1303,7 +1303,7 @@ class YedpViewport {
         const fps = this.getWidgetValue("fps", 24);
         const step = 1.0 / fps;
 
-        const results = { pose: [], depth: [], canny: [], normal: [] };
+        const results = { pose: [], depth: [], canny: [], normal: [], shaded: [] };
 
         // Determine current visibility intent
         const visSkel = this.container.querySelector("#chk-skel").checked;
@@ -1422,6 +1422,13 @@ class YedpViewport {
             });
             captureFrame(results.normal, "image/png");
             normalRestores.forEach(o => o.mesh.material = o.mat);
+
+            // PASS 5: SHADED (Lighting & Original Materials)
+            this.scene.background = new THREE.Color(0x000000);
+            setVisibility('pose');
+            this.resetCamera();
+            // We do NOT call swapPoseToUnlit() here, so the original shaded materials are preserved!
+            captureFrame(results.shaded, "image/png");
 
             await new Promise(r => setTimeout(r, 10)); // tiny yield
         }
