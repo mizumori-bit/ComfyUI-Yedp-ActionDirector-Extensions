@@ -1221,14 +1221,15 @@ class YedpViewport {
         this.activeCharId = null;
         this.refreshSidebarHighlights();
 
-        const originalSize = new THREE.Vector2();
+        const originalSize = new this.THREE.Vector2();
         this.renderer.getSize(originalSize);
-        const originalAspect = this.camera.aspect;
+        const isOrtho = this.camera.isOrthographicCamera;
+        const originalAspect = isOrtho ? 1 : this.camera.aspect;
         const originalZoom = this.camera.zoom;
         const originalBg = this.scene.background;
 
         const vpArea = this.container.querySelector(".yedp-vp-area");
-        if (vpArea) {
+        if (vpArea && !isOrtho) {
             const vpW = vpArea.clientWidth; const vpH = vpArea.clientHeight;
             const vpAspect = vpW / vpH; const targetAspect = this.renderWidth / this.renderHeight;
             if (vpAspect < targetAspect) this.camera.zoom = originalZoom * (targetAspect / vpAspect);
@@ -1236,7 +1237,11 @@ class YedpViewport {
         }
 
         this.renderer.setSize(this.renderWidth, this.renderHeight);
-        this.camera.aspect = this.renderWidth / this.renderHeight;
+        if (isOrtho) {
+            this.applyOrthoScale();
+        } else {
+            this.camera.aspect = this.renderWidth / this.renderHeight;
+        }
         this.camera.updateProjectionMatrix();
 
         const frames = this.getWidgetValue("frame_count", 48);
@@ -1368,7 +1373,7 @@ class YedpViewport {
 
         // Restoration
         this.renderer.setSize(originalSize.width, originalSize.height);
-        this.camera.aspect = originalAspect;
+        if (!isOrtho) this.camera.aspect = originalAspect;
         this.camera.zoom = originalZoom;
 
         if (this.isDepthMode) { this.camera.near = this.userNear; this.camera.far = this.userFar; }
